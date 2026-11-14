@@ -35,7 +35,7 @@ Rules for the executor:
 
 - [x] 2. Write the root configuration files (no pnpm needed)
   - [x] 2.1 Write `pnpm-workspace.yaml` and the root `package.json`
-    - `pnpm-workspace.yaml`: `packages: [apps/*, packages/*]` and `onlyBuiltDependencies: [esbuild, workerd]`.
+    - `pnpm-workspace.yaml`: `packages: [apps/*, packages/*]` and `allowBuilds: { esbuild: true, workerd: true }` (pnpm 12 ignores `onlyBuiltDependencies`).
     - Root `package.json`: `name: hypergeist`, `private: true`, `type: module`, `engines.node: ">=22.18.0 <25"`, and the scripts `build`, `test`, `typecheck`, `lint`, `format`, `format:check`, `check:deps`, `test:e2e` exactly as in the design. Leave out `packageManager` and all dependency fields for now; task 9.1 and 9.2 add them.
     - `build` runs shared, then web, then the Worker dry run, chained with `&&`. `test` is `vitest run`.
     - _Requirements: 2.1, 2.2, 2.3, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8_
@@ -189,38 +189,38 @@ Rules for the executor:
   - Confirm that no earlier task ran an install command.
   - _Requirements: 16.4, 16.5_
 
-- [ ] 9. Install dependencies and create the lockfile
+- [x] 9. Install dependencies and create the lockfile
   - [x] 9.1 Pin the pnpm version in the root `package.json`
     - Set `packageManager` to `pnpm@<exact version from pnpm -v>`.
     - _Requirements: 2.2, 13.6_
 
-  - [~] 9.2 Add all dependencies with `pnpm add`, which creates `pnpm-lock.yaml`
+  - [x] 9.2 Add all dependencies with `pnpm add`, which creates `pnpm-lock.yaml`
     - Run the commands one after another (they write the same lockfile).
-    - Root (`-w`, dev): `typescript`, `eslint`, `@eslint/js`, `typescript-eslint`, `prettier`, `vitest`, `@playwright/test`, `@types/node`.
+    - Root (`-w`, dev): `typescript@~6.0.0` (TypeScript 7's JavaScript compiler API is not stable until 7.1, and `typescript-eslint` and `ts.preProcessFile` in the Dependency_Check need 6.x), `eslint`, `@eslint/js`, `typescript-eslint`, `prettier`, `vitest`, `@playwright/test`, `@types/node`.
     - `@hypergeist/shared`: dependency `zod@^4`; dev `fast-check`, `vitest`, `@types/node`.
     - `@hypergeist/web`: dependencies `react`, `react-dom`, `@hypergeist/shared@workspace:*`; dev `vite`, `@vitejs/plugin-react`, `@testing-library/react`, `@testing-library/dom`, `@types/react`, `@types/react-dom`, `jsdom`, `vitest`.
     - `@hypergeist/worker`: dependencies `hono`, `@hypergeist/shared@workspace:*`; dev `wrangler`, `@cloudflare/workers-types`, `vitest`.
     - Confirm that `zod` resolved to a 4.x version and that `pnpm-lock.yaml` exists at the repo root.
-    - _Requirements: 2.5, 13.2, 13.9, 16.2, 16.3, 16.4_
+    - _Requirements: 2.5, 13.2, 13.9, 16.2, 16.3, 16.4, 16.6_
 
-  - [~] 9.3 Handle dependency build scripts (`approve-builds`)
-    - Run `pnpm ignored-builds` to list packages whose install scripts were skipped. `pnpm approve-builds` is interactive, so do not run it unattended; edit `onlyBuiltDependencies` in `pnpm-workspace.yaml` by hand instead.
-    - Keep `esbuild` and `workerd`. Add any other package from the list that Vite, Vitest, or Wrangler needs (for example `sharp`). Leave unrelated packages out.
+  - [x] 9.3 Handle dependency build scripts (`approve-builds`)
+    - Run `pnpm ignored-builds` to list packages whose install scripts were skipped. `pnpm approve-builds` is interactive, so do not run it unattended; edit the `allowBuilds` map in `pnpm-workspace.yaml` by hand instead (pnpm 12 ignores `onlyBuiltDependencies`).
+    - Keep `esbuild: true` and `workerd: true`. Add any other package from the list that Vite, Vitest, or Wrangler needs (for example `sharp`). Leave unrelated packages out.
     - Run `pnpm install` again so the approved builds run, then confirm `pnpm ignored-builds` lists nothing that is needed.
-    - _Requirements: 16.2, 16.4_
+    - _Requirements: 16.2, 16.4, 16.7_
 
-  - [~] 9.4 Verify the lockfile is in sync
+  - [x] 9.4 Verify the lockfile is in sync
     - Run `pnpm install --frozen-lockfile` and confirm it exits 0. Do not commit, push, or deploy; leave the lockfile for the Developer to commit.
     - Confirm `git check-ignore pnpm-lock.yaml` prints nothing.
     - _Requirements: 13.2, 13.9_
 
-- [ ] 10. Install the Playwright browser
-  - [~] 10.1 Install Chromium for Playwright
+- [x] 10. Install the Playwright browser
+  - [x] 10.1 Install Chromium for Playwright
     - Run `pnpm exec playwright install chromium` (no `--with-deps` locally).
     - _Requirements: 12.1, 13.5_
 
-- [ ] 11. Write the README
-  - [~] 11.1 Write `README.md`
+- [x] 11. Write the README
+  - [x] 11.1 Write `README.md`
     - One paragraph describing HyperGeist and the Kiroween 2026 category (Resurrection).
     - Supported Node range and the exact pinned pnpm version from `packageManager`.
     - pnpm install steps: Corepack (`corepack enable`), and `npm install -g pnpm` for Node versions without Corepack (including Node 25), with a note to install the pinned version.
@@ -230,33 +230,33 @@ Rules for the executor:
     - `.kiro/` is committed on purpose and must stay out of `.gitignore`; all project code is newly written after October 30, 2026; MIT license with a link to `LICENSE`. No API key or secret value.
     - _Requirements: 8.9, 10.9, 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 14.8, 14.9_
 
-- [ ] 12. Run the full verification
-  - [~] 12.1 Format and lint
+- [x] 12. Run the full verification
+  - [x] 12.1 Format and lint
     - Run `pnpm format`, then `pnpm format:check` and `pnpm lint`. Fix any error and re-run until both exit 0.
     - _Requirements: 4.5, 4.6, 4.7, 5.6_
 
-  - [~] 12.2 Type check
+  - [x] 12.2 Type check
     - Run `pnpm typecheck`. All three packages plus `scripts/` and `e2e/` must report zero errors.
     - _Requirements: 3.6_
 
-  - [~] 12.3 Dependency check and unit tests
+  - [x] 12.3 Dependency check and unit tests
     - Run `pnpm check:deps` (exit 0 on the real tree), then `pnpm test` (single run). All Smoke_Tests, the seed unit test, the smoke property test, and the check-deps fixture test must pass. Optional property tests run if they were written.
     - _Requirements: 4.4, 7.5, 7.6, 8.1, 8.2, 8.8, 9.3, 10.8_
 
-  - [~] 12.4 Build with the Wrangler dry run
+  - [x] 12.4 Build with the Wrangler dry run
     - Run `pnpm build`. Confirm exit 0, that `apps/web/dist/index.html` exists, and that the Wrangler dry run was the last step and ran without a Cloudflare login.
     - _Requirements: 4.3, 9.4, 11.1, 11.2, 11.3_
 
-  - [~] 12.5 Playwright smoke test
+  - [x] 12.5 Playwright smoke test
     - Run `pnpm test:e2e` after the build. The suite must pass against `wrangler dev` on port 8787.
     - _Requirements: 4.8, 12.2, 12.3, 12.4, 12.6_
 
-  - [~] 12.6 Final repository checks
+  - [x] 12.6 Final repository checks
     - Run `git check-ignore .kiro` (must print nothing, exit 1) and `git status --short` to confirm `.kiro/` and `pnpm-lock.yaml` show as untracked or modified, not ignored. Do not commit, push, or deploy.
     - Grep the repo (excluding `node_modules`) to confirm no API key or secret value is present.
     - _Requirements: 1.5, 1.6, 2.6, 13.7, 13.9, 14.9_
 
-- [~] 13. Final checkpoint - Ensure all tests pass
+- [x] 13. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

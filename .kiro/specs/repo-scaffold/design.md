@@ -144,7 +144,7 @@ In local development there are two modes:
     "@types/node": "…",
     "eslint": "…",
     "prettier": "…",
-    "typescript": "…",
+    "typescript": "~6.0.0",
     "typescript-eslint": "…",
     "vitest": "…"
   }
@@ -157,6 +157,7 @@ Notes:
 - `engines.node` is bounded below 25 so that `actions/setup-node` with `node-version-file: package.json` resolves to the newest Node 24 release, not a non-LTS line. Node 25 developers get an engines warning from pnpm, not an error. The lower bound 22.18.0 is the first Node 22 release that strips types by default.
 - `build` follows requirement 4.3: shared, then web, then the Worker dry run. `&&` makes the first failing step abort the script with a non-zero exit code.
 - `typecheck` runs each package's own `typecheck` script, then the two root tooling projects.
+- `typescript` is pinned to `~6.0.0` (6.0.3 installed). TypeScript 7 is the native compiler and its JavaScript compiler API is not stable until 7.1. The `typescript-eslint` peer range stops below 6.1, and `scripts/check-deps/rules.ts` calls `ts.preProcessFile`.
 
 ### `pnpm-workspace.yaml`
 
@@ -164,12 +165,12 @@ Notes:
 packages:
   - apps/*
   - packages/*
-onlyBuiltDependencies:
-  - esbuild
-  - workerd
+allowBuilds:
+  esbuild: true
+  workerd: true
 ```
 
-pnpm 10 skips dependency build scripts unless they are allowed. `esbuild` and `workerd` run install scripts that Vite, Vitest, and Wrangler rely on. The task list runs `pnpm approve-builds` once to confirm the final list (for example `sharp`, if Wrangler pulls it in).
+pnpm 11 and later skip dependency build scripts unless they are allowed (`strictDepBuilds`), and ignore `onlyBuiltDependencies`. The project pins pnpm 12 and uses `allowBuilds`, a map of package name to `true` or `false`. `esbuild` and `workerd` run install scripts that Vite, Vitest, and Wrangler rely on. The task list runs `pnpm ignored-builds` once to confirm the final list (for example `sharp`, if Wrangler pulls it in).
 
 ### `tsconfig.base.json`
 
@@ -719,3 +720,9 @@ These are points where the design had to go beyond or against the literal requir
 4. **`.kiro` and the project brief are excluded from Prettier.** This stops `format:check` from failing on files outside this spec.
 5. **`compatibility_date` and `packageManager` are filled during implementation.** The first needs the install date, the second needs the version of pnpm the Developer installed.
 6. **Seed scope.** With no `HYPERGEIST_TEST_SEED`, each Vitest worker file picks its own seed. A global setup that pins one seed per run was left out to keep the scaffold small.
+
+## Lessons from implementation
+
+- pnpm 11 and later enable `strictDepBuilds`, and pnpm 12 ignores `onlyBuiltDependencies`. Dependency build scripts are approved with the `allowBuilds` map in `pnpm-workspace.yaml` (`esbuild: true`, `workerd: true`).
+- TypeScript 7 (native compiler) is incompatible with this repo's tooling for now. `typescript` is pinned to `~6.0.0` until `typescript-eslint` supports the 7.1 compiler API.
+- zsh requires quoting the workspace specifier, as in `'@hypergeist/shared@workspace:*'`. In sandboxed environments Wrangler needs a writable config directory, so set `XDG_CONFIG_HOME`.

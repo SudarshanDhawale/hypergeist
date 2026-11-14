@@ -1,9 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('home page shows the heading and contacts only the app origin', async ({
-  page,
-  baseURL,
-}) => {
+test('home page shows the heading and contacts only the app origin', async ({ page, baseURL }) => {
   expect(baseURL).toBeTruthy();
   const appOrigin = new URL(baseURL ?? '').origin;
 

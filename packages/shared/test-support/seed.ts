@@ -8,8 +8,7 @@ const DEFAULT_NUM_RUNS = 100;
 const INTEGER_PATTERN = /^-?\d+$/;
 
 export type ParseSeedResult =
-  | { readonly ok: true; readonly value: number }
-  | { readonly ok: false; readonly error: string };
+  { readonly ok: true; readonly value: number } | { readonly ok: false; readonly error: string };
 
 /** Accepts a decimal integer string in [-2147483648, 2147483647]. */
 export function parseSeed(raw: string): ParseSeedResult {

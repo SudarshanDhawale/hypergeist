@@ -252,3 +252,5 @@ The tech stack and tooling choices are locked in the workspace steering files (`
 3. THE scaffold SHALL declare Zod 4 as a dependency of the Shared_Package without importing Zod in any source file.
 4. WHEN the implementation phase for this spec runs, THE spec task list SHALL define the dependency installation as an explicit task that follows the Developer installing pnpm, and no earlier task SHALL run `pnpm install`.
 5. IF pnpm is not available on the machine when a task needs it, THEN THE task SHALL stop and instruct the Developer to install pnpm as documented in the README.
+6. THE `typescript` dependency SHALL be pinned to `~6.0.0`, because TypeScript 7 is the native compiler whose JavaScript compiler API is not stable until 7.1, the `typescript-eslint` peer range stops below 6.1, and the Dependency_Check uses `ts.preProcessFile`.
+7. THE scaffold SHALL approve the `esbuild` and `workerd` dependency build scripts through the `allowBuilds` map in `pnpm-workspace.yaml`, because the pinned pnpm version ignores `onlyBuiltDependencies`.
