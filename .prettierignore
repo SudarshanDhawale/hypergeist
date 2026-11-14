@@ -1,0 +1,10 @@
+node_modules
+dist
+.wrangler
+coverage
+test-results
+playwright-report
+pnpm-lock.yaml
+.kiro
+docs/kiroween-2026-project-brief.md
+scripts/check-deps/fixtures

@@ -1,0 +1,590 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Run `git init -b main`, write `.gitignore` and `.env.example`, and verify `.kiro` is not ignored": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904124
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655916100
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655963813
+      }
+    ],
+    "1.2 Write `LICENSE` with the MIT text": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904200
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655916153
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655964054
+      }
+    ],
+    "1.3 Write `docs/assets-licenses.md` and `docs/kiro-journal.md`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904228
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655916897
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655964848
+      }
+    ],
+    "2.1 Write `pnpm-workspace.yaml` and the root `package.json`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904252
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655917339
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655965742
+      }
+    ],
+    "2.2 Write `tsconfig.base.json`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904272
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655917964
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655966163
+      }
+    ],
+    "2.3 Write `.prettierrc.json` and `.prettierignore`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904308
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655971931
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656014594
+      }
+    ],
+    "2.4 Write `eslint.config.mjs`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904347
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655971991
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656015408
+      }
+    ],
+    "2.5 Write the root `vitest.config.ts`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904366
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655972807
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656016144
+      }
+    ],
+    "2.6 Write `playwright.config.ts`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904387
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655973348
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656016741
+      }
+    ],
+    "3.1 Write the package manifest and TypeScript and Vitest configs": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904413
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655974145
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656017307
+      }
+    ],
+    "3.2 Write the empty public entry points and the shared Smoke_Test": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904439
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656118782
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656187487
+      }
+    ],
+    "3.3 Write the seed helper `test-support/seed.ts`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904464
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656119127
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656185316
+      }
+    ],
+    "3.4 Write unit tests `test-support/seed.test.ts`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904488
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656242021
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656307779
+      }
+    ],
+    "3.5 Write the required property smoke test `src/smoke.property.test.ts`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904510
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656242523
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656308580
+      }
+    ],
+    "4.1 Write the pure core `scripts/check-deps/rules.ts`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904531
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656119679
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656186819
+      }
+    ],
+    "4.2 Write `scan.ts`, `cli.ts`, and `scripts/tsconfig.json`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904555
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656243327
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656309355
+      }
+    ],
+    "4.3 Write fixtures and the fixture test `check-deps.test.ts`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904578
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656316080
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656380285
+      }
+    ],
+    "5.1 Write the manifest, configs, and `index.html`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904602
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656034129
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656113204
+      }
+    ],
+    "5.2 Write the Placeholder_Page and its Smoke_Test": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904626
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656120572
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656185209
+      }
+    ],
+    "6.1 Write the manifest, configs, and `wrangler.jsonc`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904662
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656034453
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656113308
+      }
+    ],
+    "6.2 Write the Hono app and Workers entry": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904688
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656121212
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656186026
+      }
+    ],
+    "6.3 Write the Worker Smoke_Test `src/app.test.ts`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904711
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656243891
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656309963
+      }
+    ],
+    "7.1 Write `e2e/tsconfig.json` and `e2e/smoke.spec.ts`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904744
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656203323
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656237358
+      }
+    ],
+    "7.2 Write `.github/workflows/ci.yml`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904762
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656034830
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656113125
+      }
+    ],
+    "8. Checkpoint - pnpm must be installed by the user": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904783
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656397823
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656421043
+      }
+    ],
+    "9.1 Pin the pnpm version in the root `package.json`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904805
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656424956
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656449708
+      }
+    ],
+    "9.2 Add all dependencies with `pnpm add`, which creates `pnpm-lock.yaml`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904826
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656453632
+      },
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656643578
+      }
+    ],
+    "9.3 Handle dependency build scripts (`approve-builds`)": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904850
+      }
+    ],
+    "9.4 Verify the lockfile is in sync": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904876
+      }
+    ],
+    "10.1 Install Chromium for Playwright": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904900
+      }
+    ],
+    "11.1 Write `README.md`": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904927
+      }
+    ],
+    "12.1 Format and lint": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904951
+      }
+    ],
+    "12.2 Type check": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904974
+      }
+    ],
+    "12.3 Dependency check and unit tests": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655904997
+      }
+    ],
+    "12.4 Build with the Wrangler dry run": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655905022
+      }
+    ],
+    "12.5 Playwright smoke test": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655905058
+      }
+    ],
+    "12.6 Final repository checks": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655905083
+      }
+    ],
+    "13. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655905111
+      }
+    ],
+    "1. Initialize the repository and add non-code files": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794655964884
+      }
+    ],
+    "2. Write the root configuration files (no pnpm needed)": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656016788
+      }
+    ],
+    "5. Create the Web_App (`apps/web`)": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656185240
+      }
+    ],
+    "7. Create the E2E smoke test and the CI workflow": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656237403
+      }
+    ],
+    "3. Create the Shared_Package (`packages/shared`)": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656308615
+      }
+    ],
+    "6. Create the Worker_App (`apps/worker`)": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656310006
+      }
+    ],
+    "4. Create the Dependency_Check (`scripts/`)": [
+      {
+        "executionId": "c27acc05-463c-418e-94be-f9eb351d0cbf",
+        "chatSessionId": "sess_9434dad5-c919-4105-83f5-846cd75c228c",
+        "timestamp": 1794656380317
+      }
+    ]
+  }
+}
