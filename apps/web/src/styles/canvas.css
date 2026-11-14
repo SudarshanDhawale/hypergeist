@@ -1,0 +1,169 @@
+/*
+ * Card canvas, objects, and the Edit-mode selection overlay.
+ *
+ * Markup contract:
+ *   .canvas-frame > .canvas[data-mode=interact|edit][data-scale=1|2|3]
+ *   .canvas style sets --card-w, --card-h, --scale (unitless numbers)
+ *   .canvas > .canvas-object[data-type][data-readonly]   style sets --x --y --w --h
+ *     Interact mode: the native control is the direct child.
+ *     Edit mode: the wrapper is the focusable role=button; its child is
+ *     .object-preview, which holds the inert control.
+ *   .canvas > .selection-overlay (style sets --x --y --w --h)
+ *     with 8 span.selection-handle children in this order:
+ *     nw, n, ne, e, se, s, sw, w (clockwise from top left)
+ */
+
+/* Letterbox area around the canvas: sparse dither, never stretched. */
+.canvas-frame {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-2);
+  overflow: auto;
+  scrollbar-color: var(--ink) var(--paper);
+  background: var(--paper) var(--dither-25);
+}
+
+.canvas {
+  --canvas-fs: var(--fs-12);
+
+  position: relative;
+  flex: none;
+  margin: auto;
+  box-sizing: content-box;
+  width: calc(var(--card-w) * var(--scale) * var(--px));
+  height: calc(var(--card-h) * var(--scale) * var(--px));
+  image-rendering: pixelated;
+  font-family: var(--font-ui);
+  font-size: var(--canvas-fs);
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--border-thin) solid var(--ink);
+}
+
+.canvas[data-scale='2'] {
+  --canvas-fs: var(--fs-24);
+}
+
+.canvas[data-scale='3'] {
+  --canvas-fs: var(--fs-32);
+}
+
+.canvas[data-mode='interact'] {
+  cursor: pointer;
+}
+
+.canvas[data-mode='edit'] {
+  cursor: crosshair;
+}
+
+.canvas-object,
+.selection-overlay {
+  position: absolute;
+  left: calc(var(--x) * var(--scale) * var(--px));
+  top: calc(var(--y) * var(--scale) * var(--px));
+  width: calc(var(--w) * var(--scale) * var(--px));
+  height: calc(var(--h) * var(--scale) * var(--px));
+}
+
+.canvas-object button,
+.canvas-object input,
+.canvas-object textarea,
+.canvas-object ul,
+.canvas-object ol {
+  font-size: var(--canvas-fs);
+  cursor: inherit;
+}
+
+.canvas-object button,
+.canvas-object input,
+.canvas-object textarea,
+.canvas-object ul,
+.canvas-object ol,
+.object-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.canvas-object ul,
+.canvas-object ol {
+  padding: var(--space-1) var(--space-2) var(--space-1) calc(var(--space-4) + var(--space-2));
+  background: var(--paper);
+  border: var(--border) solid var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* A read-only Field shows a dithered frame around a paper text control,
+   so text never sits on the checkerboard. */
+.canvas-object[data-type='field'][data-readonly='true'] {
+  padding: var(--space-1);
+  background: var(--paper) var(--dither-50);
+}
+
+/* Edit mode: objects are previews. Clicks reach the wrapper only. */
+.object-preview {
+  pointer-events: none;
+}
+
+.canvas[data-mode='edit'] .canvas-object:hover:not(:focus-visible) {
+  outline: var(--border-thin) solid var(--ink);
+  outline-offset: var(--border);
+}
+
+/* Selection: dashed ink outline plus 8 square handles. Not interactive. */
+.selection-overlay {
+  pointer-events: none;
+  border: var(--border) dashed var(--ink);
+}
+
+.selection-handle {
+  position: absolute;
+  width: var(--handle-size);
+  height: var(--handle-size);
+  pointer-events: none;
+  background: var(--ink);
+  border: var(--border-thin) solid var(--paper);
+  transform: translate(-50%, -50%);
+}
+
+.selection-handle:nth-child(1) {
+  left: 0;
+  top: 0;
+}
+
+.selection-handle:nth-child(2) {
+  left: 50%;
+  top: 0;
+}
+
+.selection-handle:nth-child(3) {
+  left: 100%;
+  top: 0;
+}
+
+.selection-handle:nth-child(4) {
+  left: 100%;
+  top: 50%;
+}
+
+.selection-handle:nth-child(5) {
+  left: 100%;
+  top: 100%;
+}
+
+.selection-handle:nth-child(6) {
+  left: 50%;
+  top: 100%;
+}
+
+.selection-handle:nth-child(7) {
+  left: 0;
+  top: 100%;
+}
+
+.selection-handle:nth-child(8) {
+  left: 0;
+  top: 50%;
+}

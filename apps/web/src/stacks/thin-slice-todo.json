@@ -1,0 +1,121 @@
+{
+  "formatVersion": 1,
+  "id": "thin-slice-todo",
+  "name": "Thin slice to-do",
+  "cardWidth": 512,
+  "cardHeight": 342,
+  "startCardId": "todo",
+  "cards": [
+    {
+      "id": "todo",
+      "name": "To-do",
+      "objects": [
+        {
+          "id": "todo-input",
+          "type": "field",
+          "name": "New item",
+          "x": 16,
+          "y": 16,
+          "width": 380,
+          "height": 28,
+          "value": "",
+          "placeholder": "What needs doing?",
+          "multiline": false,
+          "readOnly": false
+        },
+        {
+          "id": "todo-add",
+          "type": "button",
+          "name": "Add item",
+          "x": 408,
+          "y": 16,
+          "width": 88,
+          "height": 28,
+          "label": "Add",
+          "onClick": [
+            { "type": "append_item", "targetObjectId": "todo-list", "fromObjectId": "todo-input" },
+            { "type": "set_value", "targetObjectId": "todo-input", "value": "" },
+            { "type": "show_message", "text": "Item added." }
+          ]
+        },
+        {
+          "id": "todo-list",
+          "type": "list",
+          "name": "To-do items",
+          "x": 16,
+          "y": 56,
+          "width": 480,
+          "height": 240,
+          "items": [],
+          "ordered": false
+        }
+      ],
+      "links": [{ "id": "todo-link-about", "label": "About this stack", "targetCardId": "about" }],
+      "onOpen": []
+    },
+    {
+      "id": "about",
+      "name": "About",
+      "objects": [
+        {
+          "id": "about-text",
+          "type": "field",
+          "name": "About",
+          "x": 16,
+          "y": 16,
+          "width": 480,
+          "height": 240,
+          "value": "This is a small to-do stack. It is the first stack that HyperGeist can play.\n\nOn the To-do card, type a task into the field and press Add. The task appears in the list below the field.\n\nEverything here is data: buttons, a field, a list and links. Switch to Edit mode to select an object and read its properties.",
+          "placeholder": "",
+          "multiline": true,
+          "readOnly": true
+        },
+        {
+          "id": "about-back",
+          "type": "button",
+          "name": "Back to to-do",
+          "x": 16,
+          "y": 272,
+          "width": 120,
+          "height": 28,
+          "label": "Back to to-do",
+          "onClick": [{ "type": "go_to_card", "cardId": "todo" }]
+        }
+      ],
+      "links": [{ "id": "about-link-limits", "label": "Limits", "targetCardId": "limits" }],
+      "onOpen": []
+    },
+    {
+      "id": "limits",
+      "name": "Limits",
+      "objects": [
+        {
+          "id": "limits-text",
+          "type": "field",
+          "name": "Limits",
+          "x": 16,
+          "y": 16,
+          "width": 480,
+          "height": 240,
+          "value": "Changes are not saved. Reloading the page resets this stack.\n\nAI arrives in a later release. Nothing here talks to an AI yet.\n\nAdding with an empty field appends an empty item, because the stack format has no conditions.",
+          "placeholder": "",
+          "multiline": true,
+          "readOnly": true
+        },
+        {
+          "id": "limits-back",
+          "type": "button",
+          "name": "Back to about",
+          "x": 16,
+          "y": 272,
+          "width": 120,
+          "height": 28,
+          "label": "Back to about",
+          "onClick": [{ "type": "go_to_card", "cardId": "about" }]
+        }
+      ],
+      "links": [],
+      "onOpen": []
+    }
+  ]
+}

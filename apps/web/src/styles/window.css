@@ -1,0 +1,208 @@
+/*
+ * Desktop layout, menu bar, window chrome, status bar, notice, readout.
+ *
+ * Markup contract (see the component tree in design.md):
+ *   .desktop > header.menu-bar, main.desktop-main, aside.rail
+ *   .menu-bar > .spirit-glyph, h1, .mode-control
+ *   section.window.stack-window, direct children:
+ *     .title-bar, .canvas-frame, nav.link-bar, p.notice,
+ *     section.property-readout (Edit mode only), footer.status-bar
+ *   .title-bar > h2 (the window title)
+ *   .status-bar > .status-card, .status-mode, .status-hint
+ *   .load-error (the startup error screen)
+ */
+
+.desktop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail-w);
+  grid-template-rows: var(--menubar-h) minmax(0, 1fr);
+  grid-template-areas:
+    'menu menu'
+    'main rail';
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Portrait screens: the rail moves below the stack window. */
+@media (orientation: portrait) {
+  .desktop {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--menubar-h) minmax(0, 1fr) auto;
+    grid-template-areas:
+      'menu'
+      'main'
+      'rail';
+  }
+}
+
+.menu-bar {
+  grid-area: menu;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--menubar-h);
+  padding: 0 var(--space-3);
+  color: var(--ink);
+  background: var(--paper);
+  border-bottom: var(--border) solid var(--ink);
+}
+
+.menu-bar h1 {
+  font-size: var(--fs-16);
+}
+
+.spirit-glyph {
+  display: block;
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.desktop-main {
+  grid-area: main;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-3);
+}
+
+/* Window chrome: 2px ink border, hard shadow, paper fill, no rounding. */
+.window {
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--border) solid var(--ink);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
+}
+
+.stack-window {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+}
+
+.title-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--titlebar-h);
+  background: var(--paper) var(--stripe);
+  border-bottom: var(--border) solid var(--ink);
+}
+
+/* Paper padding keeps the title text off the stripes. */
+.title-bar > * {
+  padding: 0 var(--space-3);
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.stack-window > .canvas-frame {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.stack-window > .link-bar {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.stack-window > .notice {
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.stack-window > .property-readout {
+  grid-column: 2;
+  grid-row: 2 / 5;
+}
+
+.stack-window > .status-bar {
+  grid-column: 1 / -1;
+  grid-row: 5;
+}
+
+.link-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--border) solid var(--ink);
+}
+
+.notice {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--fs-12);
+  border-top: var(--border) dotted var(--ink);
+}
+
+/* Property readout: labelled read-only region, shown in Edit mode only. */
+.property-readout {
+  width: var(--readout-w);
+  min-height: 0;
+  padding: var(--space-2) var(--space-3);
+  overflow: auto;
+  scrollbar-color: var(--ink) var(--paper);
+  border-left: var(--border) solid var(--ink);
+}
+
+.property-readout dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-2);
+}
+
+.property-readout dt {
+  font-size: var(--fs-12);
+}
+
+.property-readout dd {
+  font-family: var(--font-mono);
+  font-size: var(--fs-16);
+  overflow-wrap: anywhere;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--statusbar-h);
+  padding: 0 var(--space-3);
+  border-top: var(--border) solid var(--ink);
+}
+
+.status-card,
+.status-mode {
+  flex: none;
+  font-size: var(--fs-12);
+}
+
+.status-hint {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-16);
+}
+
+/* Startup error screen: plain window, plain list. */
+.load-error {
+  display: block;
+  margin: var(--space-4);
+  padding: var(--space-3);
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--border) solid var(--ink);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
+}
+
+.load-error ul,
+.load-error ol {
+  padding-left: var(--space-4);
+}
+
+.load-error code {
+  font-family: var(--font-mono);
+}

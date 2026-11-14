@@ -1,0 +1,98 @@
+/*
+ * Base rules: reset, desktop, font smoothing, focus ring, reduced motion.
+ * Only --ink and --paper are used. Everything comes from tokens.css.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-radius: var(--radius);
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+html {
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  font-synthesis: none;
+  image-rendering: pixelated;
+  font-family: var(--font-ui);
+  font-size: var(--fs-16);
+  line-height: 1.25;
+  color: var(--ink);
+  background: var(--paper) var(--dither-50);
+}
+
+body {
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  font-family: var(--font-ui);
+  font-size: var(--fs-16);
+  color: var(--ink);
+  background: var(--paper) var(--dither-50);
+}
+
+/* The desktop: a dithered background behind the windows. */
+.desktop {
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  background: var(--paper) var(--dither-50);
+}
+
+/* No synthesized bold or italics, and no default heading sizes. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+b,
+strong,
+th {
+  font-weight: 400;
+  font-size: var(--fs-16);
+  margin: 0;
+}
+
+p,
+dl,
+dd,
+ul,
+ol {
+  margin: 0;
+}
+
+::selection {
+  color: var(--paper);
+  background: var(--ink);
+}
+
+/* Focus ring: 2px dashed ink, visible on every focused element. */
+:focus-visible {
+  outline: var(--focus-w) dashed var(--ink);
+  outline-offset: var(--focus-offset);
+}
+
+/* On ink-filled elements the ring flips to paper and sits inside the fill. */
+.ink-filled:focus-visible,
+button:active:focus-visible {
+  outline-color: var(--paper);
+  outline-offset: var(--focus-inset);
+}
+
+/* The slice declares no animation or transition. This guard keeps that true. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

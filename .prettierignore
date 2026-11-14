@@ -8,3 +8,4 @@ pnpm-lock.yaml
 .kiro
 docs/kiroween-2026-project-brief.md
 scripts/check-deps/fixtures
+scripts/stack/fixtures

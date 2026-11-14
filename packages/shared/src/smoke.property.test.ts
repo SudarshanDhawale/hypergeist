@@ -1,6 +1,6 @@
 import * as fc from 'fast-check';
 import { describe, it } from 'vitest';
-import { assertProperty } from '../test-support/seed';
+import { assertProperty } from '../test-support/seed.ts';
 
 describe('property smoke test', () => {
   // Feature: repo-scaffold, Property: addition is commutative

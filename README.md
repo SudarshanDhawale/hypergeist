@@ -5,8 +5,29 @@ tool in plain English, and AI builds it as a living, editable set of linked card
 fields, lists, logic, and AI-powered fields. You can use the stack, edit it by hand, or reshape it by
 talking to it. It is an entry in the Kiroween 2026 hackathon, in the **Resurrection** category.
 
-This repository currently holds the project scaffold: the monorepo, tooling, CI, and a placeholder
-page and health endpoint. Product features arrive through later specs.
+This repository holds the monorepo scaffold and the first thin slice of the product: a stack format
+with a validator, a pure action engine, a command-line validator, and a retro desktop that plays one
+small to-do stack. AI, saving, and sharing are not built yet (see [Limits](#limits-of-the-thin-slice)).
+
+## What the app does today
+
+Opening the app shows a retro desktop with a menu bar, one stack window, and a Ghost window.
+
+- **The to-do stack.** The app opens on a bundled stack of three cards: To-do, About, and Limits. On
+  the To-do card you type a task into the "New item" field and press Add. The task appears in the
+  list below. Links and buttons move between the three cards. The stack file is
+  `apps/web/src/stacks/thin-slice-todo.json`, and the app validates it at startup. If it were
+  invalid, the app would show an error screen that lists each error instead of the stack.
+- **Interact mode.** The default. Buttons run their actions, fields take typing (read-only fields
+  do not), and links navigate.
+- **Edit mode.** Click an object to select it. The selected object gets a dashed outline with
+  handles, and a read-only panel lists its properties. Nothing runs in Edit mode, and nothing can
+  be changed there (see the limits below). Escape clears the selection.
+- **Switching modes.** Use the Interact / Edit radio group in the menu bar, or press Alt+M. A hint
+  line at the bottom of the stack window names the shortcut. It also shows messages from actions,
+  such as "Item added.", for four seconds.
+- **The Ghost.** A sleeping placeholder in a side window. It does nothing yet and says "AI arrives
+  in a later release".
 
 ## Requirements
 
@@ -68,7 +89,9 @@ Run these from the repository root.
 - `pnpm format:check`: reports files that Prettier would change, without modifying them.
 - `pnpm check:deps`: scans `apps/` and `packages/` for imports that break the dependency rules
   (see Repository layout).
-- `pnpm test:e2e`: runs the Playwright smoke test against `wrangler dev`. Run `pnpm build` first.
+- `pnpm stack validate <file>`: validates a stack file (see
+  [Validating a stack file](#validating-a-stack-file)).
+- `pnpm test:e2e`: runs the Playwright tests against `wrangler dev`. Run `pnpm build` first.
 
 Playwright needs its Chromium browser once per machine:
 
@@ -76,11 +99,16 @@ Playwright needs its Chromium browser once per machine:
 pnpm exec playwright install chromium
 ```
 
+Run `pnpm test:e2e` in a normal terminal. Chromium cannot start inside some sandboxed environments
+(such as an AI agent's shell), where the tests fail before they reach the app.
+
 ## Local development
 
-1. Build once, so the Worker has a built web app in `apps/web/dist` to serve:
+1. Install dependencies and build once, so the Worker has a built web app in `apps/web/dist` to
+   serve:
 
    ```sh
+   pnpm install
    pnpm build
    ```
 
@@ -90,15 +118,113 @@ pnpm exec playwright install chromium
    pnpm --filter @hypergeist/worker dev
    ```
 
-3. In a second terminal, start the Vite dev server (port 5173):
+3. Open `http://localhost:8787`. The Worker serves the last built copy of the web app and the API
+   from one origin. After you change web code, run `pnpm build` again and reload.
 
-   ```sh
-   pnpm --filter @hypergeist/web dev
-   ```
+Optionally, for hot reload while you work on the web app, start the Vite dev server in a second
+terminal (port 5173) and open `http://localhost:5173`:
 
-   Vite proxies every request whose path starts with `/api` to the Worker at
-   `http://localhost:8787`. Open the Vite URL while developing the web app. Opening
-   `http://localhost:8787` serves the last built copy of the web app and the API from the Worker.
+```sh
+pnpm --filter @hypergeist/web dev
+```
+
+Vite proxies every request whose path starts with `/api` to the Worker at
+`http://localhost:8787`, so keep the Worker dev server running.
+
+## Validating a stack file
+
+```sh
+pnpm stack validate <file>
+```
+
+The command reads the file as UTF-8 text and passes the text to the format validator without
+parsing it first, so malformed JSON is reported as a validation error. It prints the result as JSON
+(two-space indentation) to standard output. It does not change the file and makes no network call.
+
+The result has three properties:
+
+- `valid`: `true` or `false`.
+- `errors`: an array. Each error has `code`, `path` (a JSON Pointer into the file), `message`,
+  `expected`, `actual`, and `hint`. Errors follow the order of the document.
+- `truncated`: `true` when more than 100 errors were found and only the first 100 are listed.
+
+Exit codes:
+
+| Code | Meaning                                                                                         |
+| ---- | ----------------------------------------------------------------------------------------------- |
+| 0    | The file holds a valid stack.                                                                   |
+| 1    | The file is not a valid stack, including text that is not JSON (code `INVALID_JSON`).           |
+| 2    | Usage error or unreadable file. One line goes to standard error and nothing to standard output. |
+
+pnpm adds its own `ELIFECYCLE` line to standard error when the exit code is not 0.
+
+Validating the bundled to-do stack:
+
+```sh
+pnpm stack validate apps/web/src/stacks/thin-slice-todo.json
+```
+
+```json
+{
+  "valid": true,
+  "errors": [],
+  "truncated": false
+}
+```
+
+Validating a broken file (`scripts/stack/fixtures/invalid-stack.json`, which exits with code 1)
+prints one entry per problem, for example:
+
+```json
+{
+  "code": "DANGLING_REFERENCE",
+  "path": "/startCardId",
+  "message": "The id \"no-such-card\" does not match any entity in this stack.",
+  "expected": "the id of a card in this stack",
+  "actual": "\"no-such-card\"",
+  "hint": "Use the id of a card that exists in this stack, or add the missing entity."
+}
+```
+
+## Supported stack format
+
+The thin slice supports `formatVersion` 1 with these parts:
+
+- **Object types:** `button`, `field`, and `list`.
+- **Action types:** `go_to_card`, `set_value`, `append_item`, and `show_message`.
+- Cards also hold links to other cards and an `onOpen` handler.
+
+The validator rejects anything else with a clear message. The types `image` and `ai-field`, and the
+actions `remove_item`, `run_ai_field`, `fetch_news`, `transcribe_audio`, and `schedule_notification`
+are reported as "not supported in this release". Any other type is reported as unknown. Unknown
+properties are rejected, not ignored.
+
+## Limits of the thin slice
+
+- **No AI.** Nothing in the app talks to a model. The Ghost is a placeholder.
+- **No saving.** Nothing is written to storage, so reloading the page resets the stack. The app says
+  so in the stack window.
+- **No object editing.** Edit mode is selection plus a read-only property view. You cannot move,
+  resize, or change objects, and you cannot add cards.
+- **`onOpen` handlers are validated but not run.** The bundled stack leaves them empty.
+- **Empty Add appends an empty item.** The format has no conditionals, so the Add button cannot
+  skip an empty field.
+- **Fixed object and action set.** Only the types listed above exist.
+
+## New dependencies in the web app
+
+- `zustand` holds the app state (current card, mode, selection, status message).
+- `@fontsource/pixelify-sans` and `@fontsource/vt323` bundle the two fonts of the retro look. Both
+  fonts are licensed under the SIL Open Font License 1.1 (see `docs/assets-licenses.md`). The Vite
+  build emits the font files into `apps/web/dist`, so the app loads them from its own origin.
+
+## Import extensions in shared sources
+
+Node runs the CLI's TypeScript directly, with no build step, and it requires file extensions on
+relative imports. In `packages/shared/src` and `scripts/`, write relative imports with an explicit
+`.ts` extension (`import { x } from './x.ts'`) and use only erasable TypeScript syntax (no `enum`,
+no namespaces with code, no parameter properties). An ESLint rule fails on a relative import
+without `.ts` in those folders.
 
 ## Reproducible property tests
 
@@ -128,10 +254,12 @@ hypergeist/
 │   ├── web/             React + Vite app (@hypergeist/web)
 │   └── worker/          Hono app on Cloudflare Workers (@hypergeist/worker)
 ├── docs/                project brief, asset licenses, Kiro journal
-├── e2e/                 Playwright smoke test
+├── e2e/                 Playwright tests
 ├── packages/
-│   └── shared/          shared package (@hypergeist/shared)
-└── scripts/check-deps/  dependency-rule check behind `pnpm check:deps`
+│   └── shared/          shared package (@hypergeist/shared): format, validator, engine
+└── scripts/
+    ├── check-deps/      dependency-rule check behind `pnpm check:deps`
+    └── stack/           stack validator CLI behind `pnpm stack`
 ```
 
 Dependency rules, enforced by `pnpm check:deps`:

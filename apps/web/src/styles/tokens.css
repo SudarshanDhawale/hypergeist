@@ -1,0 +1,71 @@
+/*
+ * Design tokens. This is the only CSS file that may hold color, length, or
+ * font-family literals. Every other stylesheet reads these variables.
+ *
+ * Fonts: the @fontsource imports for Pixelify Sans and VT323 live in main.tsx
+ * (written in task 14.6, after the dependency checkpoint), not in CSS.
+ */
+:root {
+  /* Ink and paper: the entire 1-bit palette. */
+  --ink: #0b0b0b;
+  --paper: #f6f3ec;
+
+  /* The AI accent. Defined here and referenced nowhere else in this release. */
+  --ghost: #ff6b1a;
+
+  /* Geometry. Every length derives from --px and scales in whole integers. */
+  --px: 1px;
+  --border: calc(2 * var(--px));
+  --border-thin: var(--px);
+  --shadow-offset: calc(3 * var(--px));
+  --menubar-h: calc(24 * var(--px));
+  --titlebar-h: calc(22 * var(--px));
+  --statusbar-h: calc(24 * var(--px));
+  --radius: 0;
+
+  /* Minimum hit area for every interactive element: 24 by 24 CSS px. */
+  --hit-min: calc(24 * var(--px));
+
+  /* Focus ring: 2px dashed. The inset offset keeps the ring inside ink fills. */
+  --focus-w: calc(2 * var(--px));
+  --focus-offset: calc(2 * var(--px));
+  --focus-inset: calc(-3 * var(--px));
+
+  /* Layout. */
+  --rail-w: calc(224 * var(--px));
+  --readout-w: calc(224 * var(--px));
+  --handle-size: calc(6 * var(--px));
+  --icon-size: calc(16 * var(--px));
+  --sprite-size: calc(48 * var(--px));
+  --space-1: calc(4 * var(--px));
+  --space-2: calc(8 * var(--px));
+  --space-3: calc(12 * var(--px));
+  --space-4: calc(16 * var(--px));
+
+  /* Type. Four sizes only. */
+  --font-ui: 'Pixelify Sans', monospace;
+  --font-mono: 'VT323', monospace;
+  --fs-12: 12px;
+  --fs-16: 16px;
+  --fs-24: 24px;
+  --fs-32: 32px;
+
+  /*
+   * Dither tiles. An SVG data URI cannot read CSS variables, so each tile
+   * repeats the hex values of --ink (0B0B0B) and --paper (F6F3EC). The "#" is
+   * written as %23 because a raw "#" would start a URL fragment.
+   * Use as: background: var(--paper) var(--dither-50);
+   */
+
+  /* 2 by 2 checkerboard, ink on paper. */
+  --dither-50: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'%3E%3Crect width='2' height='2' fill='%23f6f3ec'/%3E%3Crect width='1' height='1' fill='%230b0b0b'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%230b0b0b'/%3E%3C/svg%3E");
+
+  /* 2 by 2 with one ink cell. */
+  --dither-25: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'%3E%3Crect width='2' height='2' fill='%23f6f3ec'/%3E%3Crect width='1' height='1' fill='%230b0b0b'/%3E%3C/svg%3E");
+
+  /* 2 by 2 with three ink cells. */
+  --dither-75: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'%3E%3Crect width='2' height='2' fill='%230b0b0b'/%3E%3Crect width='1' height='1' fill='%23f6f3ec'/%3E%3C/svg%3E");
+
+  /* 1 by 2 with one ink row: horizontal lines for the active title bar. */
+  --stripe: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='2' shape-rendering='crispEdges'%3E%3Crect width='1' height='2' fill='%23f6f3ec'/%3E%3Crect width='1' height='1' fill='%230b0b0b'/%3E%3C/svg%3E");
+}

@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "id": "invalid-fixture",
+  "name": "Invalid fixture",
+  "cardWidth": 512,
+  "cardHeight": 342,
+  "startCardId": "no-such-card",
+  "cards": [
+    {
+      "id": "card-one",
+      "name": "One",
+      "objects": [],
+      "onOpen": [],
+      "extra": true
+    }
+  ]
+}

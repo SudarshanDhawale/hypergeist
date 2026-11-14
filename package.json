@@ -14,10 +14,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:deps": "node scripts/check-deps/cli.ts",
+    "stack": "node scripts/stack/cli.ts",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@hypergeist/shared": "workspace:*",
     "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "eslint": "^10.14.0",

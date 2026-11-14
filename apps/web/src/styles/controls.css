@@ -1,0 +1,140 @@
+/*
+ * Controls: buttons, text fields, lists, mode control.
+ * States: default, hover (chrome only; canvas hover lives in canvas.css),
+ * pressed, focused (base.css), disabled.
+ *
+ * Markup contract for the mode control:
+ *   div.mode-control[role=radiogroup] > label.mode-option > input[type=radio] + span
+ */
+
+button,
+input,
+textarea {
+  font-family: var(--font-ui);
+  font-size: var(--fs-16);
+  color: var(--ink);
+  margin: 0;
+}
+
+/* Buttons: paper fill, 2px ink border, no capsule. Pressed inverts. */
+button {
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  background: var(--paper);
+  border: var(--border) solid var(--ink);
+}
+
+button:hover:not(:disabled, [aria-disabled='true']) {
+  text-decoration: underline;
+}
+
+button:active:not(:disabled, [aria-disabled='true']) {
+  color: var(--paper);
+  background: var(--ink);
+}
+
+button:disabled,
+button[aria-disabled='true'] {
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+/* Primary button: double border (inner paper gap, inner ink line). */
+.button-primary {
+  box-shadow:
+    inset 0 0 0 var(--border-thin) var(--paper),
+    inset 0 0 0 calc(2 * var(--border-thin)) var(--ink);
+}
+
+/* Text fields: 2px border, thick left bar on focus, block caret. */
+input[type='text'],
+textarea {
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
+  padding: var(--space-1) var(--space-2);
+  caret-color: var(--ink);
+  caret-shape: block;
+  background: var(--paper);
+  border: var(--border) solid var(--ink);
+}
+
+textarea {
+  resize: none;
+}
+
+input[type='text']:focus,
+textarea:focus {
+  box-shadow: inset calc(2 * var(--border)) 0 0 var(--ink);
+}
+
+input[type='text']:disabled,
+textarea:disabled {
+  border-style: dashed;
+}
+
+/* Lists scroll inside their bounds and are reachable by keyboard. */
+ul,
+ol {
+  overflow: auto;
+  scrollbar-color: var(--ink) var(--paper);
+}
+
+/* Mode control: segmented, one ink-filled segment. */
+.mode-control {
+  display: inline-flex;
+  border: var(--border) solid var(--ink);
+}
+
+.mode-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
+  padding: 0 var(--space-3);
+  background: var(--paper);
+}
+
+.mode-option + .mode-option {
+  border-left: var(--border) solid var(--ink);
+}
+
+/* The radio fills the segment, so it is the hit area and the focus ring. */
+.mode-option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  appearance: none;
+  background: transparent;
+}
+
+.mode-option span {
+  position: relative;
+  pointer-events: none;
+}
+
+.mode-option input:checked,
+.mode-option input:active {
+  background: var(--ink);
+}
+
+.mode-option input:checked + span,
+.mode-option input:active + span {
+  color: var(--paper);
+}
+
+.mode-option input:checked:focus-visible,
+.mode-option input:active:focus-visible {
+  outline-color: var(--paper);
+  outline-offset: var(--focus-inset);
+}
+
+.mode-option input:hover:not(:checked) + span {
+  text-decoration: underline;
+}

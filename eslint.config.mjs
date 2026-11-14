@@ -36,6 +36,22 @@ export default [
     },
   },
   {
+    files: ['packages/shared/src/**/*.ts', 'scripts/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^\\.{1,2}(/.*)?(?<!\\.ts)$',
+              message: 'Relative imports here must end in .ts so Node can run them.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // Framework-required default exports: Vite, Vitest and Playwright configs,
     // and the Cloudflare Workers entry point.
     files: [
