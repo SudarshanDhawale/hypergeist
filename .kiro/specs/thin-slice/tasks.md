@@ -127,7 +127,7 @@ Every task refers to the requirement numbers in `requirements.md` and the module
     - File: `links.property.test.ts`.
     - **Validates: Requirements 7.4, 7.5, 7.6**
 
-- [~] 5. Checkpoint - Format module
+- [x] 5. Checkpoint - Format module
   - Run `pnpm format`, then `pnpm --filter @hypergeist/shared typecheck` and `pnpm --filter @hypergeist/shared test`. Ensure all tests pass, ask the user if questions arise.
 
 - [x] 6. Engine in `packages/shared/src/engine`
@@ -215,7 +215,7 @@ Every task refers to the requirement numbers in `requirements.md` and the module
     - `styles/css-tokens.test.ts`: load CSS with `import.meta.glob(..., { query: '?raw', import: 'default', eager: true })`; assert every file except `tokens.css` has no findings and no `--ghost`; assert `tokens.css` defines every required token; assert the dither tiles use the `--ink` and `--paper` hex values; assert `base.css` holds both font-smoothing declarations; assert no `.tsx` source mentions `--ghost`. Add scanner unit tests with a passing and a failing snippet for each rule.
     - _Requirements: 12.1, 12.2, 12.3, 12.5, 12.8_
 
-- [~] 10. Checkpoint - Work that needs no new package
+- [x] 10. Checkpoint - Work that needs no new package
   - Run `pnpm format`, then `pnpm --filter @hypergeist/shared typecheck`, `pnpm --filter @hypergeist/shared test`, `pnpm --filter @hypergeist/web typecheck`, `pnpm --filter @hypergeist/web test`, and `pnpm exec eslint packages/shared apps/web`. Do not run root `pnpm test` or `pnpm typecheck` yet (see the safety rules). Ensure all tests pass, ask the user if questions arise.
 
 - [x] 11. USER CHECKPOINT - Install dependencies
@@ -302,7 +302,7 @@ Every task refers to the requirement numbers in `requirements.md` and the module
     - `App.startup.test.tsx`: invalid `stackText` shows the error screen with `code`, `path`, `message`, and no Stack_Window; the heading stays; Alt+M toggles the Mode and clears the Selection; the Mode text and hints differ and name Alt+M; the Ghost window has the accessible name and no interactive element; the not-saved notice shows on all three Cards; Tab order is Mode_Control, Objects, Links; no write to `localStorage`, `sessionStorage`, `document.cookie`, or `indexedDB` (spies).
     - _Requirements: 11.3, 11.5, 13.1, 13.2, 13.4, 13.6, 13.7, 17.3, 17.4, 18.1, 18.3, 19.1, 22.14_
 
-- [~] 16. Checkpoint - Web shell
+- [x] 16. Checkpoint - Web shell
   - Run `pnpm format`, then `pnpm --filter @hypergeist/web typecheck` and `pnpm --filter @hypergeist/web test`. Ensure all tests pass, ask the user if questions arise.
 
 - [x] 17. End-to-end tests (written here, run by the Developer)
@@ -332,14 +332,14 @@ Every task refers to the requirement numbers in `requirements.md` and the module
     - Do not run `pnpm test:e2e`. Do not commit.
     - _Requirements: 21.1, 21.2, 21.6, 21.7_
 
-- [ ] 20. USER CHECKPOINT - Run the end-to-end tests
-  - [-] 20.1 Hand `pnpm test:e2e` to the Developer and stop
+- [x] 20. USER CHECKPOINT - Run the end-to-end tests
+  - [x] 20.1 Hand `pnpm test:e2e` to the Developer and stop
     - Do not run Playwright. Tell the Developer to run `pnpm test:e2e` in their own terminal from the repository root (Playwright starts the Worker on port 8787; `pnpm build` must have run first), and to report any failures.
     - The expected result is the three existing smoke tests plus the five tests of `e2e/thin-slice.spec.ts` passing.
     - If the Developer reports failures, fix the code or the spec, re-run task 19.1, and ask for another run.
     - _Requirements: 21.6, 22.9, 22.10, 22.11, 22.12, 22.13_
 
-- [~] 21. Final checkpoint - Run it locally
+- [x] 21. Final checkpoint - Run it locally
   - Ensure all tests pass, ask the user if questions arise. Then give the Developer these steps:
     - Build once: `pnpm build`.
     - Worker dev server, which serves the built app: `pnpm --filter @hypergeist/worker dev`, then open `http://localhost:8787`. Check `http://localhost:8787/api/health` returns `{"ok":true}`.

@@ -1,0 +1,60 @@
+# HyperGeist Handoff (2026-11-14)
+
+This file lets a new chat session continue the work. Read it with `.kiro/steering/project-status.md` and the brief in `docs/kiroween-2026-project-brief.md`. Steering files in `.kiro/steering/` load automatically.
+
+## 1. What exists
+
+| Area                                        | State                                                                                                                                     |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Repo scaffold (`.kiro/specs/repo-scaffold`) | Done. pnpm 12 workspaces, TypeScript 6.0.x, Vitest 5, Playwright, ESLint, Prettier, CI workflow, README, MIT license.                     |
+| Thin slice (`.kiro/specs/thin-slice`)       | Done, pushed. Optional property-test tasks (4.1 to 4.7, 6.6 to 6.8) were skipped on purpose.                                              |
+| `stack-format-and-validator`                | Requirements, design and tasks approved (2026-11-15). 60 tasks queued, none run. The user must install `ajv` 8 first, then run the tasks. |
+| `stack-engine`                              | Requirements only. Needs design, then tasks. Depends on the format spec.                                                                  |
+| Hooks                                       | None created yet.                                                                                                                         |
+| Worker                                      | Only `/api/health`. It serves the built web app as static assets (single origin).                                                         |
+| AI, share links, persistence, sound         | Not started.                                                                                                                              |
+
+Run it: `pnpm build`, then `pnpm --filter @hypergeist/worker dev`, open http://localhost:8787. Optional hot reload: `pnpm --filter @hypergeist/web dev` on 5173. Console check: `pnpm stack validate apps/web/src/stacks/thin-slice-todo.json`. Checks: `pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:deps && pnpm test && pnpm build`, then `pnpm test:e2e` (8 tests).
+
+## 2. Decisions already made
+
+- Product: retro "stack" environment (HyperCard reborn), category Resurrection. Name HyperGeist. Look: 1-bit classic Mac style (`.kiro/steering/design-language.md`, auto-included for UI work). The Ghost accent color is AI-only; there is no orange in the UI yet.
+- Stack: React + Vite, Zod 4, Zustand, idb, Vitest + fast-check, Playwright, Hono on Cloudflare Workers, Workers KV. Hosting: one Worker serving the web build plus `/api`.
+- Format decisions: declarative actions only (no scripts). Five object types in the full format (button, field, image, list, ai-field). **No timer or reminder object**: reminders use the `schedule_notification` action. **No icon property**: desktop icons are derived from the stack id. Default card size for new stacks is 512x342, set by `create_stack` in the engine spec.
+- The thin slice supports button, field, list and the actions `go_to_card`, `set_value`, `append_item`, `show_message`. It rejects `image`, `ai-field` and the other actions with "not supported in this release" and code `INVALID_VALUE`.
+- Error codes are a closed set of 14. The validator never returns `UNKNOWN_ENTITY` or `OUT_OF_RANGE`; the engine does.
+- Slice limits shown honestly in the app: no saving, `onOpen` validated but not run, an empty Add appends an empty item (no conditionals).
+
+## 3. Gotchas learned (also in `docs/kiro-journal.md`)
+
+- pnpm 11+ ignores `onlyBuiltDependencies`; use `allowBuilds` in `pnpm-workspace.yaml`.
+- TypeScript is pinned to `~6.0.0`. TypeScript 7 lacks the stable JS compiler API that typescript-eslint and `scripts/check-deps` need.
+- Quote `'@hypergeist/shared@workspace:*'` in zsh.
+- Shared sources and `scripts/` use explicit `.ts` import extensions so Node can run them; a lint rule enforces it. Erasable TypeScript only.
+- Vitest globals are off: call `cleanup` in `afterEach` in React tests.
+- A CSS scan test fails any `.tsx` file that contains the string `--ghost`.
+- Wrangler in the agent sandbox needs `XDG_CONFIG_HOME=/tmp/wrangler-xdg WRANGLER_SEND_METRICS=false`. Chromium cannot open pages in the agent sandbox.
+- A Playwright test that presses keys right after `page.goto` can race React; wait for the app first.
+- GitHub pushes use a personal access token with `repo` and `workflow` scopes stored in macOS Keychain.
+
+## 4. Open issues and known gaps
+
+- **UI/UX first pass.** The user expects many changes. Known from the design review: touch targets under 24 px (close box, handles), focus ring on inverted items, `--ghost` contrast of 2.57:1 on paper (use it with a shape), "Interact mode: nothing can be edited" wording, trash and Ghost both bottom-right, fixed 512x342 card vs phone widths, font coverage for non-Latin text and emoji, dither of cross-origin images needing a Worker image proxy.
+- KV free plan: 1,000 writes per day and eventual consistency; the share spec needs a "busy" path.
+- BYO key straight from the browser depends on provider CORS; capability detection needs a connectivity probe.
+- The draft tool registry mixes engine operations with names like `fetch_news` that are also stack actions; the orchestrator spec must separate model tools from runtime actions.
+- Shared stacks can leak the viewer's IP through `https:` images and can spend the viewer's AI quota through ai-fields.
+- Brief open questions still open: hero stack for the demo video, reminder mechanism and its limits, whether to attempt the Kiro Crew bonus.
+- Persistence (IndexedDB, first-run seeding, export/import, trash with restore) has no spec yet.
+
+## 5. Suggested next steps (in order)
+
+1. Ask the user for their UI/UX feedback list from using the slice. Turn it into a small "ui-polish" Quick Spec.
+2. Create Kiro hooks once the user agrees: run related tests on save, validate bundled stack JSON on save, block edits that put `.kiro` in `.gitignore` or write API-key-like strings, and a journal reminder after each spec task.
+3. Run the tasks for `stack-format-and-validator` (design and tasks exist). Then write the design and tasks for `stack-engine`.
+4. Planned spec order after that: local-persistence, retro-ui-shell (full), ai-orchestrator (against a mock and recorded provider first), worker-backend, effects-runtime, showcase stacks, share-and-remix, supporting templates.
+5. Keep adding entries to `docs/kiro-journal.md` for the write-up. Plan the demo video early (under 3 minutes).
+
+## 6. How to start a new chat
+
+Start a new chat session in Kiro and send: "Read `.kiro/steering/project-status.md`, `docs/handoff.md` and `docs/kiro-journal.md`. Summarize the state in five lines and ask what I want to do next." Check the summary against this file before approving any work.
