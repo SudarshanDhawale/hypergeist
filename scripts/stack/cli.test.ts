@@ -7,6 +7,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const demoStack = 'apps/web/src/stacks/thin-slice-todo.json';
 const invalidStack = 'scripts/stack/fixtures/invalid-stack.json';
 const notJson = 'scripts/stack/fixtures/not-json.txt';
+const allTypesStack = 'scripts/stack/fixtures/all-types-stack.json';
+const invalidNewTypesStack = 'scripts/stack/fixtures/invalid-new-types-stack.json';
 const fixturesDirectory = 'scripts/stack/fixtures';
 
 const SIX_PROPERTIES = ['actual', 'code', 'expected', 'hint', 'message', 'path'];
@@ -43,6 +45,13 @@ describe('stack CLI child process: exit 0', () => {
     expect(result.stderr).toBe('');
     expect(parseResult(result.stdout)).toEqual({ valid: true, errors: [], truncated: false });
   });
+
+  it('accepts the all-types fixture (five Object types, nine Action types)', () => {
+    const result = cli('validate', allTypesStack);
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(parseResult(result.stdout)).toEqual({ valid: true, errors: [], truncated: false });
+  });
 });
 
 describe('stack CLI child process: exit 1', () => {
@@ -66,6 +75,30 @@ describe('stack CLI child process: exit 1', () => {
     expect(parsed.valid).toBe(false);
     expect(parsed.errors).toHaveLength(1);
     expect(parsed.errors[0]?.['code']).toBe('INVALID_JSON');
+  });
+
+  it('puts the line and column of the syntax error in the INVALID_JSON message', () => {
+    const result = cli('validate', notJson);
+    expect(result.status).toBe(1);
+    const message = parseResult(result.stdout).errors[0]?.['message'];
+    expect(message).toMatch(/line \d+, column \d+/);
+  });
+
+  it('reports structured errors for image and ai-field and Action values of the new types', () => {
+    const result = cli('validate', invalidNewTypesStack);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe('');
+    const parsed = parseResult(result.stdout);
+    expect(parsed.valid).toBe(false);
+    expect(parsed.truncated).toBe(false);
+    for (const error of parsed.errors) {
+      expect(Object.keys(error).sort()).toEqual(SIX_PROPERTIES);
+    }
+    expect(parsed.errors.map((error) => [error['code'], error['path']])).toEqual([
+      ['INVALID_VALUE', '/cards/0/objects/3/src'],
+      ['WRONG_REFERENCE_TYPE', '/cards/0/objects/5/inputObjectIds/0'],
+      ['INVALID_VALUE', '/cards/0/objects/7/onClick/3/at'],
+    ]);
   });
 });
 

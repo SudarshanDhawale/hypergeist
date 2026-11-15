@@ -58,6 +58,28 @@ function ObjectControl({
         />
       );
     }
+    case 'image':
+      // A placeholder only. No `<img>` is ever created and `src` is never loaded.
+      return (
+        <div
+          className="image-placeholder"
+          role="img"
+          aria-label={object.alt !== '' ? object.alt : name}
+        >
+          <span className="image-placeholder-title">Image</span>
+          <span className="image-placeholder-alt">{object.alt}</span>
+        </div>
+      );
+    case 'ai-field':
+      return (
+        <textarea
+          aria-label={name}
+          value={object.value}
+          placeholder="AI field. AI arrives in a later release."
+          readOnly
+          tabIndex={preview ? -1 : undefined}
+        />
+      );
     case 'list': {
       const items = object.items.map((item, index) => <li key={index}>{item}</li>);
       // The list takes the keyboard focus so it can scroll without a pointer.

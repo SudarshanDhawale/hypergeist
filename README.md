@@ -188,16 +188,44 @@ prints one entry per problem, for example:
 
 ## Supported stack format
 
-The thin slice supports `formatVersion` 1 with these parts:
+The format module in `packages/shared` supports `formatVersion` 1 in full:
 
-- **Object types:** `button`, `field`, and `list`.
-- **Action types:** `go_to_card`, `set_value`, `append_item`, and `show_message`.
-- Cards also hold links to other cards and an `onOpen` handler.
+- **Object types (five):** `button`, `field`, `image`, `list`, and `ai-field`.
+- **Action types (nine):** `go_to_card`, `set_value`, `append_item`, `remove_item`,
+  `show_message`, `run_ai_field`, `fetch_news`, `transcribe_audio`, and `schedule_notification`.
+- Cards also hold links to other cards and an `onOpen` handler. A stack may carry an optional
+  `remixedFrom` id.
 
-The validator rejects anything else with a clear message. The types `image` and `ai-field`, and the
-actions `remove_item`, `run_ai_field`, `fetch_news`, `transcribe_audio`, and `schedule_notification`
-are reported as "not supported in this release". Any other type is reported as unknown. Unknown
-properties are rejected, not ignored.
+Any other object or action type is reported as unknown (code `INVALID_VALUE`, with a hint that
+lists the known types). Unknown properties are rejected, not ignored.
+
+Two value rules worth knowing:
+
+- **Image `src`.** Either an `https:` URL (lowercase `https://`, ASCII only, no user name or
+  password, no spaces or backslashes, at most 2,000 characters) or a base64 `data:image/png`,
+  `data:image/jpeg`, `data:image/gif`, or `data:image/webp` URI with a non-empty, well-formed
+  payload (at most 1,000,000 characters). `http:`, `javascript:`, and `data:image/svg+xml` are
+  rejected.
+- **Timestamps.** The `at` property of `schedule_notification` is a UTC timestamp with seconds and
+  a trailing `Z`, for example `2026-12-01T09:00:00Z` (a fraction is allowed). Offsets such as
+  `+01:00`, a missing seconds part, a lowercase `z`, `24:00:00`, and impossible dates such as
+  `2027-02-29` are rejected. The validator reads no clock, so a time in the past is valid.
+
+### Entry points
+
+`@hypergeist/shared/format` exports these functions. They are pure, never throw, and need no
+browser or Worker API.
+
+- `validateStack(input)`: returns `{ valid, errors, truncated }`. A string is treated as JSON text.
+- `parseStack(input)`: validates in the same way and returns `{ ok: true, value }` with a typed
+  `Stack`, or `{ ok: false, errors, truncated }`.
+- `serializeStack(stack)`: returns `{ ok: true, value }` with canonical JSON text (two-space
+  indentation, keys in the documented order, one trailing newline), or `{ ok: false, errors,
+truncated }` for an invalid stack.
+- `stackJsonSchema()`: returns a JSON Schema (draft 2020-12) for a stack, generated from the Zod
+  schemas. It covers structure only. Cross-entity rules (duplicate ids, dangling references,
+  bounds, and the 2,000-character limit on `https:` image sources) are checked by the validator,
+  not by the schema.
 
 ## Limits of the thin slice
 
@@ -209,7 +237,13 @@ properties are rejected, not ignored.
 - **`onOpen` handlers are validated but not run.** The bundled stack leaves them empty.
 - **Empty Add appends an empty item.** The format has no conditionals, so the Add button cannot
   skip an empty field.
-- **Fixed object and action set.** Only the types listed above exist.
+- **The format is ahead of the app.** The validator, parser, serializer, and JSON Schema know all
+  five object types and all nine actions, but the app does not use them all yet. The action
+  executor runs only `go_to_card`, `set_value`, `append_item`, and `show_message`; it skips the
+  other five actions with a message. An `image` object shows a placeholder and never loads its
+  `src`. An `ai-field` shows its stored value in a read-only box and does not call a model.
+- **Closed set.** There are no other object or action types, no conditionals, no loops, and no
+  scripts.
 
 ## New dependencies in the web app
 

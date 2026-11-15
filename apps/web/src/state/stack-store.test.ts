@@ -459,6 +459,44 @@ describe('status messages', () => {
   });
 });
 
+describe('Actions that are validated but not executable in this release', () => {
+  const removeItem: Handler = [{ type: 'remove_item', targetObjectId: 'todo-list', index: 0 }];
+
+  it('shows the skip message for a remove_item Button and leaves the stack unchanged', () => {
+    const store = createStackStore(stackWithAddHandler(removeItem));
+    const before = store.getState().stack;
+    store.getState().activateButton('todo-add');
+
+    expect(store.getState().status).toEqual({
+      text: 'Skipped action 1 (remove_item): this action type is not supported.',
+      seq: 1,
+    });
+    expect(store.getState().stack).toEqual(before);
+    expect(store.getState().currentCardId).toBe('todo');
+    expect(executeSpy).toHaveBeenCalledTimes(1);
+    expect(executeSpy.mock.results[0]?.value.effects).toEqual([]);
+  });
+
+  it('skips only the new Action and keeps the rest of the Handler working', () => {
+    const onClick: Handler = [
+      { type: 'append_item', targetObjectId: 'todo-list', fromObjectId: 'todo-input' },
+      { type: 'remove_item', targetObjectId: 'todo-list', index: 0 },
+      { type: 'show_message', text: 'Done.' },
+      { type: 'go_to_card', cardId: 'about' },
+    ];
+    const store = createStackStore(stackWithAddHandler(onClick));
+    store.getState().typeInField('todo-input', 'kept');
+    store.getState().activateButton('todo-add');
+
+    expect(items(store)).toEqual(['kept']);
+    expect(store.getState().currentCardId).toBe('about');
+    expect(store.getState().status?.text).toBe(
+      'Skipped action 2 (remove_item): this action type is not supported. Done.',
+    );
+    expect(executeSpy.mock.results.at(-1)?.value.effects).toEqual([]);
+  });
+});
+
 describe('expireStatus', () => {
   it('clears the status when the seq matches', () => {
     const store = demoStore();

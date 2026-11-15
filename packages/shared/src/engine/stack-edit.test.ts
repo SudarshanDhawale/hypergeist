@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { ButtonObject, FieldObject, ListObject, Stack } from '../format/index.ts';
+import type {
+  AiFieldObject,
+  ButtonObject,
+  FieldObject,
+  ListObject,
+  Stack,
+} from '../format/index.ts';
 import { findObject, textOf, withObject } from './stack-edit.ts';
 import type { ExecutionResult } from './types.ts';
 
@@ -120,6 +126,20 @@ describe('textOf', () => {
   it('returns the value of a Field', () => {
     expect(textOf(field)).toBe('hello');
     expect(textOf({ ...field, value: '' })).toBe('');
+  });
+
+  it('returns the value of an AI field', () => {
+    const aiField: AiFieldObject = {
+      id: 'ask',
+      type: 'ai-field',
+      name: 'Ask',
+      ...frame,
+      prompt: 'Summarize',
+      inputObjectIds: [],
+      value: 'an answer',
+    };
+    expect(textOf(aiField)).toBe('an answer');
+    expect(textOf({ ...aiField, value: '' })).toBe('');
   });
 
   it('returns the empty string for a Button', () => {

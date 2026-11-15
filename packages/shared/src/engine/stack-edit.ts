@@ -41,13 +41,14 @@ export function withObject(stack: Stack, target: StackObject, replacement: Stack
 
 /**
  * The current text of an Object: a List's items joined by newline characters, a
- * Field's value, and the empty string for anything else.
+ * Field's or AI field's value, and the empty string for anything else.
  */
 export function textOf(object: StackObject): string {
   switch (object.type) {
     case 'list':
       return object.items.join('\n');
     case 'field':
+    case 'ai-field':
       return object.value;
     default:
       return '';

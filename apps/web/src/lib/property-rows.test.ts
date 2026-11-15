@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { ButtonObject, FieldObject, ListObject } from '@hypergeist/shared/format';
+import type {
+  AiFieldObject,
+  ButtonObject,
+  FieldObject,
+  ImageObject,
+  ListObject,
+} from '@hypergeist/shared/format';
 import { propertyRows } from './property-rows.ts';
 
 const box = { x: 16, y: 48, width: 380, height: 28 };
@@ -30,6 +36,24 @@ const list: ListObject = {
   ...box,
   items: ['a', ''],
   ordered: true,
+};
+
+const image = (src: string): ImageObject => ({
+  id: 'pic',
+  type: 'image',
+  name: '',
+  ...box,
+  src,
+  alt: 'A ghost',
+});
+const aiField: AiFieldObject = {
+  id: 'ai-1',
+  type: 'ai-field',
+  name: 'Summary',
+  ...box,
+  prompt: 'Summarize this',
+  inputObjectIds: ['todo-list', 'todo-new'],
+  value: '',
 };
 
 const asMap = (rows: readonly { label: string; text: string }[]) =>
@@ -72,6 +96,41 @@ describe('propertyRows', () => {
     const rows = propertyRows(list);
     expect(rows.map((r) => r.label)).toEqual([...COMMON, 'items', 'ordered']);
     expect(asMap(rows)).toMatchObject({ items: '["a",""]', ordered: 'true' });
+  });
+
+  it('lists the Image properties and keeps a short src whole', () => {
+    const rows = propertyRows(image('https://example.com/a.png'));
+    expect(rows.map((r) => r.label)).toEqual([...COMMON, 'src', 'alt']);
+    expect(asMap(rows)).toMatchObject({ src: 'https://example.com/a.png', alt: 'A ghost' });
+  });
+
+  it('cuts a 1 MB src to 80 code points followed by an ellipsis', () => {
+    const src = `data:image/png;base64,${'A'.repeat(1_000_000)}`;
+    const text = asMap(propertyRows(image(src)))['src'] ?? '';
+    expect(Array.from(text)).toHaveLength(81);
+    expect(text).toBe(`${src.slice(0, 80)}…`);
+  });
+
+  it('counts code points, not UTF-16 units, when cutting src', () => {
+    const src = `https://example.com/${'😀'.repeat(100)}`;
+    const text = asMap(propertyRows(image(src)))['src'] ?? '';
+    expect(text).toBe(`${Array.from(src).slice(0, 80).join('')}…`);
+  });
+
+  it('does not cut a src of exactly 80 code points', () => {
+    const src = `https://example.com/${'a'.repeat(60)}`;
+    expect(Array.from(src)).toHaveLength(80);
+    expect(asMap(propertyRows(image(src)))['src']).toBe(src);
+  });
+
+  it('lists the AI field properties', () => {
+    const rows = propertyRows(aiField);
+    expect(rows.map((r) => r.label)).toEqual([...COMMON, 'prompt', 'inputObjectIds', 'value']);
+    expect(asMap(rows)).toMatchObject({
+      prompt: 'Summarize this',
+      inputObjectIds: '["todo-list","todo-new"]',
+      value: '""',
+    });
   });
 
   it('prints an empty string as two double quotes', () => {

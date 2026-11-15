@@ -28,20 +28,20 @@ describe('loadStack', () => {
     expect(result.errors[0]?.path).toBe('');
   });
 
-  it('rejects a Stack with one unsupported object type and points at its type', () => {
+  it('rejects a Stack with one unknown object type and points at its type', () => {
     const stack: unknown = JSON.parse(demoText);
     const mutated = structuredClone(stack) as {
       cards: { objects: { type: string }[] }[];
     };
     const target = mutated.cards[0]?.objects[0];
     if (target === undefined) throw new Error('Demo_Stack first Card has no Objects');
-    target.type = 'image';
+    target.type = 'nope';
 
     const result = loadStack(JSON.stringify(mutated));
     expect(result.ok).toBe(false);
     if (result.ok) return;
     const error = result.errors.find((e) => e.path === '/cards/0/objects/0/type');
     expect(error).toBeDefined();
-    expect(error?.message).toContain('not supported in this release');
+    expect(error?.message).toContain('is unknown');
   });
 });

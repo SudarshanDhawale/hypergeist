@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { ButtonObject, FieldObject, ListObject } from '@hypergeist/shared/format';
+import type {
+  AiFieldObject,
+  ButtonObject,
+  FieldObject,
+  ImageObject,
+  ListObject,
+} from '@hypergeist/shared/format';
 import { accessibleName } from './accessible-name.ts';
 
 const box = { x: 0, y: 0, width: 100, height: 30 };
@@ -30,7 +36,36 @@ const list = (name: string): ListObject => ({
   ordered: false,
 });
 
+const image = (name: string, alt: string): ImageObject => ({
+  id: 'i1',
+  type: 'image',
+  name,
+  ...box,
+  src: 'https://example.com/a.png',
+  alt,
+});
+const aiField = (name: string): AiFieldObject => ({
+  id: 'a1',
+  type: 'ai-field',
+  name,
+  ...box,
+  prompt: 'p',
+  inputObjectIds: [],
+  value: '',
+});
+
 describe('accessibleName', () => {
+  it('uses the Image name first, then alt, then the id', () => {
+    expect(accessibleName(image('Logo', 'A ghost'))).toBe('Logo');
+    expect(accessibleName(image('', 'A ghost'))).toBe('A ghost');
+    expect(accessibleName(image('', ''))).toBe('i1');
+  });
+
+  it('uses the AI field name, then the id', () => {
+    expect(accessibleName(aiField('Summary'))).toBe('Summary');
+    expect(accessibleName(aiField(''))).toBe('a1');
+  });
+
   it('prefers a non-empty name for every type', () => {
     expect(accessibleName(button('Add', 'Add item'))).toBe('Add');
     expect(accessibleName(field('New', 'Type here'))).toBe('New');

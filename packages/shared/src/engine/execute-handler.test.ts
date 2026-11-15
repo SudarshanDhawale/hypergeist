@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { StackSchema } from '../format/index.ts';
+import { StackSchema, validateStack } from '../format/index.ts';
 import type {
   Action,
+  AiFieldObject,
   ButtonObject,
   FieldObject,
   Handler,
@@ -30,6 +31,18 @@ function makeField(id: string, value: string, readOnly = false): FieldObject {
 
 function makeList(id: string, items: readonly string[]): ListObject {
   return { id, type: 'list', name: 'Items', ...frame, items: [...items], ordered: false };
+}
+
+function makeAiField(id: string, value: string): AiFieldObject {
+  return {
+    id,
+    type: 'ai-field',
+    name: id,
+    ...frame,
+    prompt: 'Summarize',
+    inputObjectIds: [],
+    value,
+  };
 }
 
 function makeButton(id: string): ButtonObject {
@@ -79,6 +92,11 @@ function fieldValue(stack: Stack, id: string): string | undefined {
   return object?.type === 'field' ? object.value : undefined;
 }
 
+function aiFieldValue(stack: Stack, id: string): string | undefined {
+  const object = findObject(stack, id);
+  return object?.type === 'ai-field' ? object.value : undefined;
+}
+
 function listItems(stack: Stack, id: string): readonly string[] | undefined {
   const object = findObject(stack, id);
   return object?.type === 'list' ? object.items : undefined;
@@ -112,6 +130,32 @@ describe('executeHandler: set_value', () => {
     expect(fieldValue(result.stack, 'out')).toBe('hello');
     expect(result.messages).toEqual([]);
     expect(result.effects).toEqual([]);
+  });
+
+  it('sets an AI field to a literal value and to a copy of a Field', () => {
+    const stack = makeStack([makeAiField('ask', 'old')]);
+    const literal = executeHandler(stack, [
+      { type: 'set_value', targetObjectId: 'ask', value: 'literal' },
+    ]);
+    expect(aiFieldValue(literal.stack, 'ask')).toBe('literal');
+    expect(literal.messages).toEqual([]);
+    expect(literal.effects).toEqual([]);
+
+    const copied = executeHandler(stack, [
+      { type: 'set_value', targetObjectId: 'ask', fromObjectId: 'note' },
+    ]);
+    expect(aiFieldValue(copied.stack, 'ask')).toBe('hello');
+    expect(copied.messages).toEqual([]);
+  });
+
+  it('copies the value of an AI field into a Field', () => {
+    const stack = makeStack([makeAiField('ask', 'an answer')]);
+    const result = executeHandler(stack, [
+      { type: 'set_value', targetObjectId: 'out', fromObjectId: 'ask' },
+    ]);
+    expect(fieldValue(result.stack, 'out')).toBe('an answer');
+    expect(aiFieldValue(result.stack, 'ask')).toBe('an answer');
+    expect(result.messages).toEqual([]);
   });
 
   it('copies a List with its items joined by newline characters', () => {
@@ -339,6 +383,51 @@ describe('executeHandler: skipped actions', () => {
     expect(result.messages).toHaveLength(2);
     expect(result.messages[0]).toMatch(/^Skipped action 1 /);
     expect(result.messages[1]).toMatch(/^Skipped action 2 /);
+  });
+});
+
+describe('executeHandler: Actions that are only validated', () => {
+  const unsupported: readonly Action[] = [
+    { type: 'remove_item', targetObjectId: 'items', index: 0 },
+    { type: 'run_ai_field', targetObjectId: 'ask' },
+    { type: 'fetch_news', targetObjectId: 'items', topics: ['science'] },
+    { type: 'transcribe_audio', targetObjectId: 'out' },
+    { type: 'schedule_notification', message: 'Time is up', atFromObjectId: 'note' },
+  ];
+
+  it.each(unsupported.map((action) => [action.type, action] as const))(
+    'skips %s with one message and leaves the Stack unchanged and valid',
+    (type, action) => {
+      const stack = makeStack([makeAiField('ask', 'old')]);
+      expect(validateStack(stack).valid).toBe(true);
+      const result = executeHandler(stack, [action]);
+      expect(result.messages).toEqual([
+        `Skipped action 1 (${type}): this action type is not supported.`,
+      ]);
+      expect(result.stack).toEqual(stack);
+      expect(validateStack(result.stack).valid).toBe(true);
+      expect(result.effects).toEqual([]);
+      expect(result).not.toHaveProperty('navigateTo');
+    },
+  );
+
+  it('reports the position of each skipped Action and keeps the other Actions working', () => {
+    const stack = makeStack([makeAiField('ask', 'old')]);
+    const result = executeHandler(stack, [
+      { type: 'set_value', targetObjectId: 'out', value: 'v' },
+      { type: 'remove_item', targetObjectId: 'items', index: 1 },
+      { type: 'show_message', text: 'between' },
+      { type: 'schedule_notification', message: 'Later', at: '2030-01-01T09:00:00Z' },
+    ]);
+    expect(fieldValue(result.stack, 'out')).toBe('v');
+    expect(listItems(result.stack, 'items')).toEqual(['a', 'b', 'c']);
+    expect(result.messages).toEqual([
+      'Skipped action 2 (remove_item): this action type is not supported.',
+      'between',
+      'Skipped action 4 (schedule_notification): this action type is not supported.',
+    ]);
+    expect(validateStack(result.stack).valid).toBe(true);
+    expect(result.effects).toEqual([]);
   });
 });
 

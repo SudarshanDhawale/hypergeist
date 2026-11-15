@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { run } from './run.ts';
 
@@ -33,11 +34,50 @@ function reader(files: Record<string, string>): (path: string) => string {
   };
 }
 
+const FIXTURES = new URL('./fixtures/', import.meta.url);
+const readFixture = (name: string): string => readFileSync(new URL(name, FIXTURES), 'utf8');
+
 describe('run: exit 0', () => {
   it('prints the indented result of a valid stack', () => {
     const result = run(['validate', 'ok.json'], reader({ 'ok.json': VALID_STACK }));
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe('');
+    expect(result.stdout).toBe(
+      `${JSON.stringify({ valid: true, errors: [], truncated: false }, null, 2)}\n`,
+    );
+  });
+});
+
+describe('run: all-types fixture', () => {
+  it('accepts a stack with every Object type and every Action type', () => {
+    const text = readFixture('all-types-stack.json');
+    const stack = JSON.parse(text) as {
+      cards: {
+        objects: { type: string; onClick?: { type: string }[] }[];
+        onOpen: { type: string }[];
+      }[];
+    };
+    const objectTypes = new Set(stack.cards.flatMap((card) => card.objects.map((o) => o.type)));
+    const actionTypes = new Set(
+      stack.cards
+        .flatMap((card) => [...card.onOpen, ...card.objects.flatMap((o) => o.onClick ?? [])])
+        .map((action) => action.type),
+    );
+    expect([...objectTypes].sort()).toEqual(['ai-field', 'button', 'field', 'image', 'list']);
+    expect([...actionTypes].sort()).toEqual([
+      'append_item',
+      'fetch_news',
+      'go_to_card',
+      'remove_item',
+      'run_ai_field',
+      'schedule_notification',
+      'set_value',
+      'show_message',
+      'transcribe_audio',
+    ]);
+
+    const result = run(['validate', 'all-types.json'], reader({ 'all-types.json': text }));
+    expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe(
       `${JSON.stringify({ valid: true, errors: [], truncated: false }, null, 2)}\n`,
     );
@@ -67,6 +107,21 @@ describe('run: exit 1', () => {
     expect(parsed.valid).toBe(false);
     expect(parsed.errors).toHaveLength(1);
     expect(parsed.errors[0]?.code).toBe('INVALID_JSON');
+  });
+
+  it('reports structured errors for the new-type fixture', () => {
+    const text = readFixture('invalid-new-types-stack.json');
+    const result = run(['validate', 'x.json'], reader({ 'x.json': text }));
+    expect(result.exitCode).toBe(1);
+    const parsed = JSON.parse(result.stdout) as { errors: Record<string, unknown>[] };
+    expect(parsed.errors.map((error) => error['code'])).toEqual([
+      'INVALID_VALUE',
+      'WRONG_REFERENCE_TYPE',
+      'INVALID_VALUE',
+    ]);
+    for (const error of parsed.errors) {
+      expect(Object.keys(error).sort()).toEqual(SIX_PROPERTIES);
+    }
   });
 });
 

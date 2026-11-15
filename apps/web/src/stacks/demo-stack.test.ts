@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  StackSchema,
-  SUPPORTED_ACTION_TYPES,
-  SUPPORTED_OBJECT_TYPES,
-  validateStack,
-} from '@hypergeist/shared/format';
+import { StackSchema, OBJECT_TYPES, ACTION_TYPES, validateStack } from '@hypergeist/shared/format';
 import type { Card, StackObject } from '@hypergeist/shared/format';
 import demoText from './thin-slice-todo.json?raw';
 
@@ -100,11 +95,11 @@ describe('Demo_Stack', () => {
     for (const card of parsed.cards) {
       for (const action of card.onOpen) actionTypes.add(action.type);
       for (const object of card.objects) {
-        expect(SUPPORTED_OBJECT_TYPES).toContain(object.type);
+        expect(OBJECT_TYPES).toContain(object.type);
         if (object.type === 'button') for (const a of object.onClick) actionTypes.add(a.type);
       }
     }
-    for (const type of actionTypes) expect(SUPPORTED_ACTION_TYPES).toContain(type);
+    for (const type of actionTypes) expect(ACTION_TYPES).toContain(type);
   });
 
   it('keeps every object at least 28px tall and inside the card', () => {

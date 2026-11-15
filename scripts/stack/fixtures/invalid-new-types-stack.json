@@ -1,0 +1,201 @@
+{
+  "formatVersion": 1,
+  "id": "all-types",
+  "name": "All types",
+  "cardWidth": 512,
+  "cardHeight": 342,
+  "startCardId": "home",
+  "cards": [
+    {
+      "id": "home",
+      "name": "Home",
+      "objects": [
+        {
+          "id": "title-field",
+          "type": "field",
+          "name": "title-field",
+          "x": 8,
+          "y": 8,
+          "width": 240,
+          "height": 24,
+          "value": "",
+          "placeholder": "Type here",
+          "multiline": false,
+          "readOnly": false
+        },
+        {
+          "id": "when-field",
+          "type": "field",
+          "name": "when-field",
+          "x": 8,
+          "y": 40,
+          "width": 240,
+          "height": 24,
+          "value": "2026-12-01T09:00:00Z",
+          "placeholder": "When",
+          "multiline": false,
+          "readOnly": false
+        },
+        {
+          "id": "notes-list",
+          "type": "list",
+          "name": "notes-list",
+          "x": 8,
+          "y": 72,
+          "width": 240,
+          "height": 24,
+          "items": [
+            "one",
+            "two"
+          ],
+          "ordered": false
+        },
+        {
+          "id": "logo",
+          "type": "image",
+          "name": "logo",
+          "x": 8,
+          "y": 104,
+          "width": 240,
+          "height": 24,
+          "src": "http://example.com/logo.png",
+          "alt": "Logo"
+        },
+        {
+          "id": "dot",
+          "type": "image",
+          "name": "dot",
+          "x": 8,
+          "y": 136,
+          "width": 240,
+          "height": 24,
+          "src": "data:image/png;base64,iVBORw0KGgo=",
+          "alt": "A dot"
+        },
+        {
+          "id": "summary",
+          "type": "ai-field",
+          "name": "summary",
+          "x": 8,
+          "y": 168,
+          "width": 240,
+          "height": 24,
+          "prompt": "Summarize the notes.",
+          "inputObjectIds": [
+            "go"
+          ],
+          "value": ""
+        },
+        {
+          "id": "go",
+          "type": "button",
+          "name": "go",
+          "x": 8,
+          "y": 200,
+          "width": 240,
+          "height": 24,
+          "label": "Go",
+          "onClick": [
+            {
+              "type": "go_to_card",
+              "cardId": "other"
+            },
+            {
+              "type": "set_value",
+              "targetObjectId": "title-field",
+              "value": "Hello"
+            },
+            {
+              "type": "set_value",
+              "targetObjectId": "summary",
+              "fromObjectId": "notes-list"
+            },
+            {
+              "type": "append_item",
+              "targetObjectId": "notes-list",
+              "item": "three"
+            },
+            {
+              "type": "append_item",
+              "targetObjectId": "notes-list",
+              "fromObjectId": "title-field"
+            },
+            {
+              "type": "remove_item",
+              "targetObjectId": "notes-list",
+              "index": 0
+            },
+            {
+              "type": "show_message",
+              "text": "Done"
+            }
+          ]
+        },
+        {
+          "id": "ai",
+          "type": "button",
+          "name": "ai",
+          "x": 8,
+          "y": 232,
+          "width": 240,
+          "height": 24,
+          "label": "Ask AI",
+          "onClick": [
+            {
+              "type": "run_ai_field",
+              "targetObjectId": "summary"
+            },
+            {
+              "type": "fetch_news",
+              "targetObjectId": "notes-list",
+              "topics": [
+                "technology",
+                "science"
+              ]
+            },
+            {
+              "type": "transcribe_audio",
+              "targetObjectId": "title-field"
+            },
+            {
+              "type": "schedule_notification",
+              "message": "Time is up",
+              "at": "2026-12-01T09:00:00+02:00"
+            },
+            {
+              "type": "schedule_notification",
+              "message": "From field",
+              "atFromObjectId": "when-field"
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "to-other",
+          "label": "Other card",
+          "targetCardId": "other"
+        }
+      ],
+      "onOpen": [
+        {
+          "type": "show_message",
+          "text": "Welcome"
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "objects": [],
+      "links": [
+        {
+          "id": "to-home",
+          "label": "Back",
+          "targetCardId": "home"
+        }
+      ],
+      "onOpen": []
+    }
+  ]
+}

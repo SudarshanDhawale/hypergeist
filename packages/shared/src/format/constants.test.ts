@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { VALIDATION_ERROR_CODES } from './errors.ts';
 import {
+  ACTION_TYPES,
   ENTITY_ID_PATTERN,
   FORMAT_VERSION,
+  IMAGE_SRC_PATTERN,
   LIMITS,
-  SUPPORTED_ACTION_TYPES,
-  SUPPORTED_OBJECT_TYPES,
-  UNSUPPORTED_ACTION_TYPES,
-  UNSUPPORTED_OBJECT_TYPES,
+  OBJECT_TYPES,
 } from './limits.ts';
 
 describe('LIMITS', () => {
@@ -32,6 +31,16 @@ describe('LIMITS', () => {
       setValueText: { min: 0, max: 10_000 },
       appendItemText: { min: 0, max: 500 },
       messageText: { min: 1, max: 500 },
+      imageAlt: { min: 0, max: 200 },
+      imageHttpsSrc: { min: 1, max: 2000 },
+      imageDataSrc: { min: 1, max: 1_000_000 },
+      aiPrompt: { min: 1, max: 2000 },
+      aiInputObjects: { min: 0, max: 10 },
+      aiFieldValue: { min: 0, max: 10_000 },
+      removeItemIndex: { min: 0 },
+      newsTopics: { min: 1, max: 10 },
+      newsTopicText: { min: 1, max: 100 },
+      notificationMessage: { min: 1, max: 500 },
       maxDocumentBytes: 2_097_152,
       maxErrors: 100,
       actualMaxChars: 200,
@@ -65,32 +74,76 @@ describe('ENTITY_ID_PATTERN', () => {
 });
 
 describe('type lists', () => {
-  it('pins the supported and unsupported Object types', () => {
-    expect([...SUPPORTED_OBJECT_TYPES]).toEqual(['button', 'field', 'list']);
-    expect([...UNSUPPORTED_OBJECT_TYPES]).toEqual(['image', 'ai-field']);
+  it('pins the Object types in the order of the requirements', () => {
+    expect([...OBJECT_TYPES]).toEqual(['button', 'field', 'image', 'list', 'ai-field']);
   });
 
-  it('pins the supported and unsupported Action types', () => {
-    expect([...SUPPORTED_ACTION_TYPES]).toEqual([
+  it('pins the nine Action types in glossary order', () => {
+    expect([...ACTION_TYPES]).toEqual([
       'go_to_card',
       'set_value',
       'append_item',
-      'show_message',
-    ]);
-    expect([...UNSUPPORTED_ACTION_TYPES]).toEqual([
       'remove_item',
+      'show_message',
       'run_ai_field',
       'fetch_news',
       'transcribe_audio',
       'schedule_notification',
     ]);
   });
+});
 
-  it('keeps supported and unsupported lists disjoint', () => {
-    const objectTypes: readonly string[] = SUPPORTED_OBJECT_TYPES;
-    const actionTypes: readonly string[] = SUPPORTED_ACTION_TYPES;
-    expect(UNSUPPORTED_OBJECT_TYPES.some((t) => objectTypes.includes(t))).toBe(false);
-    expect(UNSUPPORTED_ACTION_TYPES.some((t) => actionTypes.includes(t))).toBe(false);
+describe('IMAGE_SRC_PATTERN', () => {
+  const png = 'iVBORw0KGgo=';
+
+  it('has no flags and is ASCII only', () => {
+    expect(IMAGE_SRC_PATTERN.flags).toBe('');
+    // eslint-disable-next-line no-control-regex
+    expect(/^[\x00-\x7F]*$/.test(IMAGE_SRC_PATTERN.source)).toBe(true);
+  });
+
+  it.each([
+    'https://example.com',
+    'https://example.com/a/b.png?x=1#frag',
+    'https://[::1]:8080/x',
+    'https://a-b.example.com:443/%20x',
+    `data:image/png;base64,${png}`,
+    'data:image/jpeg;base64,AAAA',
+    'data:image/gif;base64,AAA=',
+    'data:image/webp;base64,AA==',
+  ])('accepts %s', (src) => {
+    expect(IMAGE_SRC_PATTERN.test(src)).toBe(true);
+  });
+
+  it.each([
+    '',
+    'http://example.com',
+    'HTTPS://example.com',
+    'https://',
+    'https:///path',
+    'https://user@example.com',
+    'https://example.com/a b',
+    'https://example.com/a\\b',
+    'https://example.com/é',
+    'https://example.com/\n',
+    'https://example.com\n',
+    'data:image/svg+xml;base64,AAAA',
+    'data:image/png;base64,',
+    'data:image/png;base64,AAA',
+    'data:image/png;base64,AA=A',
+    'data:image/png;base64,AAAA=',
+    'data:image/png,AAAA',
+    'data:text/html;base64,AAAA',
+    'javascript:alert(1)',
+  ])('rejects %j', (src) => {
+    expect(IMAGE_SRC_PATTERN.test(src)).toBe(false);
+  });
+
+  it('handles a 1,000,000-character data URI without failing', () => {
+    const payload = 'A'.repeat(999_988 - (999_988 % 4));
+    const uri = `data:image/png;base64,${payload}`;
+    expect(IMAGE_SRC_PATTERN.test(uri)).toBe(true);
+    expect(IMAGE_SRC_PATTERN.test(`${uri}!`)).toBe(false);
   });
 });
 

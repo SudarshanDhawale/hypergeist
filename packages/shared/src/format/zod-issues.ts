@@ -1,12 +1,7 @@
 import type { z } from 'zod';
 import type { ValidationErrorCode } from './errors.ts';
-import {
-  ENTITY_ID_PATTERN,
-  SUPPORTED_ACTION_TYPES,
-  SUPPORTED_OBJECT_TYPES,
-  UNSUPPORTED_ACTION_TYPES,
-  UNSUPPORTED_OBJECT_TYPES,
-} from './limits.ts';
+import { ACTION_TYPES, ENTITY_ID_PATTERN, IMAGE_SRC_PATTERN, OBJECT_TYPES } from './limits.ts';
+import { limitMessages } from './limit-messages.ts';
 import { codePointLength } from './text.ts';
 
 /** One Zod issue. `ZodError.issues` is a list of these. */
@@ -260,29 +255,8 @@ function mapTooBig(
   const actual = actualAt(candidate, segments);
   const max = limitOf(issue.maximum, issue.inclusive, -1);
   if (issue.origin === 'string' || issue.origin === 'array') {
-    const isText = issue.origin === 'string';
-    const unit = isText ? 'character' : 'item';
-    const length = lengthOf(actual);
-    const over = length === undefined ? undefined : length - max;
-    return [
-      error('LIMIT_EXCEEDED', segments, actual, {
-        message:
-          length === undefined
-            ? `The ${isText ? 'text' : 'array'} is longer than the maximum of ${plural(max, unit)}.`
-            : `The ${isText ? 'text' : 'array'} has ${plural(length, unit)}, more than the maximum of ${max}.`,
-        expected: isText
-          ? `text of at most ${plural(max, unit)}`
-          : `an array of at most ${plural(max, unit)}`,
-        hint:
-          over === undefined || over < 1
-            ? isText
-              ? `Shorten the text to at most ${plural(max, unit)}.`
-              : `Remove items so that at most ${plural(max, unit)} remain.`
-            : isText
-              ? `Remove ${plural(over, unit)} from this text.`
-              : `Remove ${plural(over, unit)} from this array.`,
-      }),
-    ];
+    const kind = issue.origin === 'string' ? 'text' : 'array';
+    return [error('LIMIT_EXCEEDED', segments, actual, limitMessages(kind, max, lengthOf(actual)))];
   }
   const noun =
     issue.origin === 'int' ? 'an integer' : issue.origin === 'number' ? 'a number' : 'a value';
@@ -343,19 +317,64 @@ function mapTooSmall(
   ];
 }
 
+type MessageText = { readonly message: string; readonly expected: string; readonly hint: string };
+
+/** Names the Object that owns the property at `segments` as `with the id "x"`, or "" when it has no usable id. */
+function ownerLabel(candidate: unknown, segments: readonly PathSegment[]): string {
+  const owner = lookup(candidate, segments.slice(0, -1));
+  if (owner.found && isRecord(owner.value)) {
+    const id = owner.value['id'];
+    if (typeof id === 'string' && id.length > 0) return `with the id ${quote(id)}`;
+  }
+  return '';
+}
+
+/** Regular expressions that have their own message. Anything else gets the generic text. */
+const KNOWN_PATTERNS: readonly {
+  readonly pattern: string;
+  readonly describe: (candidate: unknown, segments: readonly PathSegment[]) => MessageText;
+}[] = [
+  {
+    pattern: String(ENTITY_ID_PATTERN),
+    describe: () => ({
+      message: 'The id has characters or a length that ids do not allow.',
+      expected:
+        'an id of 1 to 64 characters: lowercase letters, digits, "_" or "-", starting with a letter or digit',
+      hint: 'Use lowercase letters, digits, "_" and "-" only, for example "card-1".',
+    }),
+  },
+  {
+    pattern: String(IMAGE_SRC_PATTERN),
+    describe: (candidate, segments) => {
+      const owner = ownerLabel(candidate, segments);
+      return {
+        message: `The source of the image${owner === '' ? '' : ` ${owner}`} is not an allowed image source.`,
+        expected:
+          'an https: URL, or a base64 data:image URI of type png, jpeg, gif, or webp, with a non-empty payload',
+        hint: 'Use an https: URL, or a base64 data:image URI of type png, jpeg, gif, or webp.',
+      };
+    },
+  },
+];
+
 function mapInvalidFormat(
   issue: Extract<ZodIssueLike, { code: 'invalid_format' }>,
   candidate: unknown,
 ): RawError[] {
   const segments = toSegments(issue.path);
   const actual = actualAt(candidate, segments);
-  if (issue.format === 'regex' && issue.pattern === String(ENTITY_ID_PATTERN)) {
+  if (issue.format === 'regex') {
+    const known = KNOWN_PATTERNS.find((entry) => entry.pattern === issue.pattern);
+    if (known !== undefined) {
+      return [error('INVALID_VALUE', segments, actual, known.describe(candidate, segments))];
+    }
+  }
+  if (issue.format === 'datetime') {
     return [
       error('INVALID_VALUE', segments, actual, {
-        message: 'The id has characters or a length that ids do not allow.',
-        expected:
-          'an id of 1 to 64 characters: lowercase letters, digits, "_" or "-", starting with a letter or digit',
-        hint: 'Use lowercase letters, digits, "_" and "-" only, for example "card-1".',
+        message: 'The time is not a valid UTC timestamp.',
+        expected: 'a UTC timestamp such as 2026-12-01T09:00:00Z',
+        hint: 'Write the time in UTC with seconds and a trailing Z.',
       }),
     ];
   }
@@ -379,8 +398,8 @@ function discriminatorKind(
   nodeSegments: readonly PathSegment[],
 ): DiscriminatorKind {
   const known = options ?? [];
-  if (known.some((option) => isOneOf(SUPPORTED_OBJECT_TYPES, option))) return 'object';
-  if (known.some((option) => isOneOf(SUPPORTED_ACTION_TYPES, option))) return 'action';
+  if (known.some((option) => isOneOf(OBJECT_TYPES, option))) return 'object';
+  if (known.some((option) => isOneOf(ACTION_TYPES, option))) return 'action';
   return nodeSegments[nodeSegments.length - 2] === 'objects' ? 'object' : 'action';
 }
 
@@ -396,9 +415,8 @@ function mapDiscriminator(
     issue.inclusive === false ? undefined : issue.options,
     nodeSegments,
   );
-  const supported = kind === 'object' ? SUPPORTED_OBJECT_TYPES : SUPPORTED_ACTION_TYPES;
-  const unsupported = kind === 'object' ? UNSUPPORTED_OBJECT_TYPES : UNSUPPORTED_ACTION_TYPES;
-  const list = supported.join(', ');
+  const known = kind === 'object' ? OBJECT_TYPES : ACTION_TYPES;
+  const list = known.join(', ');
   const found = lookup(candidate, segments);
 
   if (!found.found) {
@@ -414,10 +432,9 @@ function mapDiscriminator(
       }),
     ];
   }
-  const state = isOneOf(unsupported, value) ? 'is not supported in this release' : 'is unknown';
   return [
     error('INVALID_VALUE', segments, value, {
-      message: `The ${kind} type ${quote(value)} ${state}.`,
+      message: `The ${kind} type ${quote(value)} is unknown.`,
       expected: `one of: ${list}`,
       hint: `Use one of: ${list}.`,
     }),
@@ -474,5 +491,29 @@ function mapIssue(issue: ZodIssueLike, candidate: unknown): RawError[] {
  * writes to it, and never throws for any JSON value.
  */
 export function mapZodIssues(issues: readonly ZodIssueLike[], candidate: unknown): RawError[] {
-  return issues.flatMap((issue) => mapIssue(issue, candidate));
+  return issues
+    .flatMap((issue) => mapIssue(issue, candidate))
+    .map((raw) => nameObject(raw, candidate));
+}
+
+/** Object types whose errors must name the Object id (Requirements 4.8, 4.9). */
+const NAMED_OBJECT_TYPES: readonly string[] = ['image', 'ai-field'];
+
+/**
+ * An error inside an image or ai-field Object gets a closing sentence that names the Object
+ * id, unless the message already names it. The path alone does not hold the id, because it
+ * holds array indexes.
+ */
+function nameObject(raw: RawError, candidate: unknown): RawError {
+  const { segments } = raw;
+  if (segments.length < 4 || segments[0] !== 'cards' || segments[2] !== 'objects') return raw;
+  // An error about `type` itself means the Object has no known type, so it is not one of ours.
+  if (segments.length === 5 && segments[4] === 'type') return raw;
+  const owner = lookup(candidate, segments.slice(0, 4));
+  if (!owner.found || !isRecord(owner.value)) return raw;
+  const type = owner.value['type'];
+  const id = owner.value['id'];
+  if (typeof type !== 'string' || !NAMED_OBJECT_TYPES.includes(type)) return raw;
+  if (typeof id !== 'string' || id.length === 0 || raw.message.includes(quote(id))) return raw;
+  return { ...raw, message: `${raw.message} This is in the ${type} object ${quote(id)}.` };
 }

@@ -345,16 +345,23 @@ describe('validateHandler', () => {
     ]);
   });
 
-  it('reports structural errors, including unsupported action types', () => {
+  it('accepts a complete fetch_news action', () => {
     const result = validateHandler(typedStack(), [
-      { type: 'fetch_news' },
+      { type: 'fetch_news', targetObjectId: 'tasks', topics: ['technology'] },
+    ]);
+    expect(result).toEqual({ valid: true, errors: [], truncated: false });
+  });
+
+  it('reports structural errors, including unknown action types', () => {
+    const result = validateHandler(typedStack(), [
+      { type: 'nope' },
       { type: 'show_message', text: '' },
     ]);
     expect(result.errors.map((e) => [e.code, e.path])).toEqual([
       ['INVALID_VALUE', '/0/type'],
       ['INVALID_VALUE', '/1/text'],
     ]);
-    expect(result.errors[0]?.message).toContain('not supported in this release');
+    expect(result.errors[0]?.message).toContain('is unknown');
   });
 
   it('reports a candidate that is not an array at the root', () => {

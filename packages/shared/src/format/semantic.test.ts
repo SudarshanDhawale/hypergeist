@@ -48,6 +48,33 @@ const button = (id: string, onClick: unknown[] = [], extra: Raw = {}): Raw => ({
   ...extra,
 });
 
+const image = (id: string, extra: Raw = {}): Raw => ({
+  id,
+  type: 'image',
+  name: '',
+  x: 0,
+  y: 0,
+  width: 50,
+  height: 50,
+  src: 'https://example.com/a.png',
+  alt: '',
+  ...extra,
+});
+
+const aiField = (id: string, inputObjectIds: unknown[] = [], extra: Raw = {}): Raw => ({
+  id,
+  type: 'ai-field',
+  name: '',
+  x: 0,
+  y: 150,
+  width: 100,
+  height: 40,
+  prompt: 'Summarize',
+  inputObjectIds,
+  value: '',
+  ...extra,
+});
+
 const card = (id: string, extra: Raw = {}): Raw => ({
   id,
   name: id,
@@ -144,17 +171,35 @@ describe('runSemanticPass', () => {
     it('keeps the first occurrence in the index', () => {
       const candidate = stack([card('a', { objects: [field('a')] })]);
       const { index } = buildEntityIndex(candidate);
-      expect(index.get('a')).toEqual({ kind: 'card' });
+      expect(index.get('a')).toEqual({ kind: 'card', cardIndex: 0 });
     });
 
-    it('still registers the id of an Object with an unsupported type, and checks nothing else', () => {
-      const image = { id: 'pic', type: 'image', x: 9999, y: 0, width: 1, height: 1 };
-      const candidate = stack([card('a', { objects: [image, field('pic')] })]);
+    it('still registers the id of an Object with an unknown type, and checks nothing else', () => {
+      const mystery = { id: 'pic', type: 'mystery', x: 9999, y: 0, width: 1, height: 1 };
+      const candidate = stack([card('a', { objects: [mystery, field('pic')] })]);
       expect(pass(candidate)).toEqual(['DUPLICATE_ID /cards/0/objects/1/id']);
       expect(buildEntityIndex(candidate).index.get('pic')).toEqual({
         kind: 'object',
-        objectType: 'image',
+        cardIndex: 0,
+        objectType: 'mystery',
       });
+    });
+
+    it('records the index of the owning Card for every kind', () => {
+      const candidate = stack([
+        card('a'),
+        card('b', {
+          objects: [field('f')],
+          links: [{ id: 'k', label: 'L', targetCardId: 'a' }],
+        }),
+      ]);
+      const { index } = buildEntityIndex(candidate);
+      expect([index.get('a'), index.get('b'), index.get('f'), index.get('k')]).toEqual([
+        { kind: 'card', cardIndex: 0 },
+        { kind: 'card', cardIndex: 1 },
+        { kind: 'object', cardIndex: 1, objectType: 'field' },
+        { kind: 'link', cardIndex: 1 },
+      ]);
     });
   });
 
@@ -234,11 +279,11 @@ describe('runSemanticPass', () => {
       ]);
     });
 
-    it('resolves a reference to an unsupported-type Object as WRONG_REFERENCE_TYPE', () => {
-      const image = { id: 'pic', type: 'image' };
+    it('resolves a reference to an unknown-type Object as WRONG_REFERENCE_TYPE', () => {
+      const mystery = { id: 'pic', type: 'mystery' };
       const candidate = stack([
         card('a', {
-          objects: [image],
+          objects: [mystery],
           onOpen: [{ type: 'set_value', targetObjectId: 'pic', value: '' }],
         }),
       ]);
@@ -268,6 +313,271 @@ describe('runSemanticPass', () => {
       expect(error?.message.length).toBeGreaterThan(0);
       expect(error?.expected.length).toBeGreaterThan(0);
       expect(error?.hint.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('widened Action references (6.4, 6.5)', () => {
+    const run = (action: Raw): string[] =>
+      pass(
+        stack([
+          card('a', {
+            objects: [field('f'), list('l'), aiField('ai'), image('pic')],
+            onOpen: [action],
+          }),
+        ]),
+      );
+
+    it('lets set_value target a field or an ai-field, and read a field, ai-field, or list', () => {
+      expect(run({ type: 'set_value', targetObjectId: 'ai', value: '' })).toEqual([]);
+      expect(run({ type: 'set_value', targetObjectId: 'f', fromObjectId: 'ai' })).toEqual([]);
+      expect(run({ type: 'set_value', targetObjectId: 'ai', fromObjectId: 'l' })).toEqual([]);
+    });
+
+    it('lets append_item read an ai-field', () => {
+      expect(run({ type: 'append_item', targetObjectId: 'l', fromObjectId: 'ai' })).toEqual([]);
+    });
+
+    it('still rejects a list target for set_value, and an image anywhere', () => {
+      expect(run({ type: 'set_value', targetObjectId: 'l', value: '' })).toEqual([
+        'WRONG_REFERENCE_TYPE /cards/0/onOpen/0/targetObjectId',
+      ]);
+      expect(run({ type: 'set_value', targetObjectId: 'pic', value: '' })).toEqual([
+        'WRONG_REFERENCE_TYPE /cards/0/onOpen/0/targetObjectId',
+      ]);
+      expect(run({ type: 'set_value', targetObjectId: 'f', fromObjectId: 'pic' })).toEqual([
+        'WRONG_REFERENCE_TYPE /cards/0/onOpen/0/fromObjectId',
+      ]);
+      expect(run({ type: 'append_item', targetObjectId: 'l', fromObjectId: 'l' })).toEqual([
+        'WRONG_REFERENCE_TYPE /cards/0/onOpen/0/fromObjectId',
+      ]);
+    });
+
+    it('names the allowed types in the message', () => {
+      const errors = runSemanticPass(
+        stack([
+          card('a', {
+            objects: [field('f'), button('b')],
+            onOpen: [{ type: 'set_value', targetObjectId: 'f', fromObjectId: 'b' }],
+          }),
+        ]),
+      );
+      expect(errors.map((e) => e.expected)).toEqual([
+        'the id of a field, ai-field, or list object',
+      ]);
+    });
+  });
+
+  describe('the five new Actions (6.3 to 6.11)', () => {
+    const run = (action: Raw): string[] =>
+      pass(
+        stack([
+          card('a', {
+            objects: [field('f'), list('l'), aiField('ai'), image('pic'), button('b')],
+            onOpen: [action],
+          }),
+        ]),
+      );
+    const target = '/cards/0/onOpen/0/targetObjectId';
+
+    it('accepts each Action with references of the right type', () => {
+      expect(run({ type: 'remove_item', targetObjectId: 'l', index: 0 })).toEqual([]);
+      expect(run({ type: 'show_message', text: 'hi' })).toEqual([]);
+      expect(run({ type: 'run_ai_field', targetObjectId: 'ai' })).toEqual([]);
+      expect(run({ type: 'fetch_news', targetObjectId: 'l', topics: ['a'] })).toEqual([]);
+      expect(run({ type: 'transcribe_audio', targetObjectId: 'f' })).toEqual([]);
+      expect(run({ type: 'schedule_notification', message: 'm', atFromObjectId: 'f' })).toEqual([]);
+      expect(
+        run({ type: 'schedule_notification', message: 'm', at: '2026-12-01T09:00:00Z' }),
+      ).toEqual([]);
+    });
+
+    it.each<[string, Raw]>([
+      ['remove_item', { type: 'remove_item', targetObjectId: 'f', index: 0 }],
+      ['run_ai_field', { type: 'run_ai_field', targetObjectId: 'f' }],
+      ['fetch_news', { type: 'fetch_news', targetObjectId: 'f', topics: ['a'] }],
+      ['transcribe_audio', { type: 'transcribe_audio', targetObjectId: 'ai' }],
+    ])('reports WRONG_REFERENCE_TYPE for a %s target of the wrong type', (_label, action) => {
+      expect(run(action)).toEqual([`WRONG_REFERENCE_TYPE ${target}`]);
+    });
+
+    it.each<[string, Raw]>([
+      ['remove_item', { type: 'remove_item', targetObjectId: 'gone', index: 0 }],
+      ['run_ai_field', { type: 'run_ai_field', targetObjectId: 'gone' }],
+      ['fetch_news', { type: 'fetch_news', targetObjectId: 'gone', topics: ['a'] }],
+      ['transcribe_audio', { type: 'transcribe_audio', targetObjectId: 'gone' }],
+    ])('reports DANGLING_REFERENCE for a %s target that does not exist', (_label, action) => {
+      expect(run(action)).toEqual([`DANGLING_REFERENCE ${target}`]);
+    });
+
+    it('rejects a Card, a Link, and a Button as a target', () => {
+      expect(run({ type: 'run_ai_field', targetObjectId: 'a' })).toEqual([
+        `WRONG_REFERENCE_TYPE ${target}`,
+      ]);
+      expect(run({ type: 'remove_item', targetObjectId: 'b', index: 0 })).toEqual([
+        `WRONG_REFERENCE_TYPE ${target}`,
+      ]);
+      expect(run({ type: 'transcribe_audio', targetObjectId: 'pic' })).toEqual([
+        `WRONG_REFERENCE_TYPE ${target}`,
+      ]);
+    });
+
+    it('checks schedule_notification.atFromObjectId against fields only', () => {
+      const at = '/cards/0/onOpen/0/atFromObjectId';
+      expect(run({ type: 'schedule_notification', message: 'm', atFromObjectId: 'gone' })).toEqual([
+        `DANGLING_REFERENCE ${at}`,
+      ]);
+      expect(run({ type: 'schedule_notification', message: 'm', atFromObjectId: 'ai' })).toEqual([
+        `WRONG_REFERENCE_TYPE ${at}`,
+      ]);
+    });
+
+    it('requires exactly one of at and atFromObjectId, as INVALID_VALUE at the Action', () => {
+      const both = {
+        type: 'schedule_notification',
+        message: 'm',
+        at: '2026-12-01T09:00:00Z',
+        atFromObjectId: 'f',
+      };
+      const neither = { type: 'schedule_notification', message: 'm' };
+      expect(run(both)).toEqual(['INVALID_VALUE /cards/0/onOpen/0']);
+      expect(run(neither)).toEqual(['INVALID_VALUE /cards/0/onOpen/0']);
+    });
+
+    it('limits fetch_news topics to 10 and still checks the reference', () => {
+      const topics = (count: number): string[] => Array.from({ length: count }, () => 'x');
+      expect(run({ type: 'fetch_news', targetObjectId: 'l', topics: topics(10) })).toEqual([]);
+      expect(run({ type: 'fetch_news', targetObjectId: 'l', topics: topics(11) })).toEqual([
+        'LIMIT_EXCEEDED /cards/0/onOpen/0/topics',
+      ]);
+      expect(run({ type: 'fetch_news', targetObjectId: 'gone', topics: topics(11) })).toEqual([
+        `DANGLING_REFERENCE ${target}`,
+        'LIMIT_EXCEEDED /cards/0/onOpen/0/topics',
+      ]);
+    });
+
+    it('skips a missing or non-array topics list', () => {
+      expect(run({ type: 'fetch_news', targetObjectId: 'l' })).toEqual([]);
+      expect(run({ type: 'fetch_news', targetObjectId: 'l', topics: 'x' })).toEqual([]);
+    });
+  });
+
+  describe('ai-field inputObjectIds (4.7, 4.8)', () => {
+    const inputs = (...objects: Raw[]): string[] => pass(stack([card('a', { objects })]));
+    const at = (entry: number): string => `/cards/0/objects/3/inputObjectIds/${entry}`;
+    const base = (): Raw[] => [field('f'), list('l'), image('pic', { x: 100, y: 0 })];
+
+    it('accepts a field, a list, and another ai-field on the same Card', () => {
+      expect(
+        inputs(
+          field('f'),
+          list('l'),
+          aiField('other', [], { x: 100 }),
+          aiField('ai', ['f', 'l', 'other'], { y: 100, x: 100 }),
+        ),
+      ).toEqual([]);
+      expect(inputs(aiField('ai', []))).toEqual([]);
+    });
+
+    it('reports DANGLING_REFERENCE at the entry, and skips non-string entries', () => {
+      expect(inputs(...base(), aiField('ai', ['f', 'gone', 5, null]))).toEqual([
+        `DANGLING_REFERENCE ${at(1)}`,
+      ]);
+    });
+
+    it('reports WRONG_REFERENCE_TYPE for the ai-field itself, naming it', () => {
+      const candidate = stack([card('a', { objects: [...base(), aiField('ai', ['ai'])] })]);
+      const [error] = runSemanticPass(candidate);
+      expect(summary(runSemanticPass(candidate))).toEqual([`WRONG_REFERENCE_TYPE ${at(0)}`]);
+      expect(error?.message).toContain('"ai"');
+      expect(error?.message).toContain('itself');
+      expect(error?.actual).toEqual({ present: true, value: 'ai' });
+    });
+
+    it('reports WRONG_REFERENCE_TYPE for a Card and a Link', () => {
+      const candidate = stack([
+        card('a', {
+          objects: [...base(), aiField('ai', ['a', 'k'])],
+          links: [{ id: 'k', label: 'L', targetCardId: 'a' }],
+        }),
+      ]);
+      const errors = runSemanticPass(candidate);
+      expect(summary(errors)).toEqual([
+        `WRONG_REFERENCE_TYPE ${at(0)}`,
+        `WRONG_REFERENCE_TYPE ${at(1)}`,
+      ]);
+      expect(errors[0]?.message).toContain('a card');
+      expect(errors[1]?.message).toContain('a link');
+      expect(errors.every((e) => e.message.includes('"ai"'))).toBe(true);
+    });
+
+    it('reports WRONG_REFERENCE_TYPE for a button and an image', () => {
+      const candidate = stack([
+        card('a', { objects: [...base(), aiField('ai', ['pic', 'b'], { y: 100 }), button('b')] }),
+      ]);
+      const errors = runSemanticPass(candidate);
+      expect(summary(errors)).toEqual([
+        `WRONG_REFERENCE_TYPE ${at(0)}`,
+        `WRONG_REFERENCE_TYPE ${at(1)}`,
+      ]);
+      expect(errors[0]?.message).toContain('"image"');
+      expect(errors[1]?.message).toContain('"button"');
+    });
+
+    it('reports WRONG_REFERENCE_TYPE for an Object of an unknown type', () => {
+      const mystery = { id: 'm', type: 'mystery' };
+      expect(inputs(...base(), aiField('ai', ['m']), mystery)).toEqual([
+        `WRONG_REFERENCE_TYPE ${at(0)}`,
+      ]);
+    });
+
+    it('reports WRONG_REFERENCE_TYPE for an Object on another Card', () => {
+      const candidate = stack([
+        card('a', { objects: [field('f1'), list('l1'), aiField('other')] }),
+        card('b', { objects: [field('g'), aiField('ai', ['f1', 'g', 'other'])] }),
+      ]);
+      const errors = runSemanticPass(candidate);
+      expect(summary(errors)).toEqual([
+        'WRONG_REFERENCE_TYPE /cards/1/objects/1/inputObjectIds/0',
+        'WRONG_REFERENCE_TYPE /cards/1/objects/1/inputObjectIds/2',
+      ]);
+      expect(errors[0]?.message).toContain('different card');
+      expect(errors[0]?.message).toContain('"ai"');
+    });
+
+    it('reports INVALID_VALUE at the later entry of a repeated id', () => {
+      const errors = runSemanticPass(
+        stack([card('a', { objects: [...base(), aiField('ai', ['f', 'l', 'f', 'f'])] })]),
+      );
+      expect(summary(errors)).toEqual([`INVALID_VALUE ${at(2)}`, `INVALID_VALUE ${at(3)}`]);
+      expect(errors[0]?.message).toContain('"ai"');
+    });
+
+    it('reports a repeated id that is also wrong once per rule', () => {
+      expect(inputs(...base(), aiField('ai', ['gone', 'gone']))).toEqual([
+        `DANGLING_REFERENCE ${at(0)}`,
+        `INVALID_VALUE ${at(1)}`,
+        `DANGLING_REFERENCE ${at(1)}`,
+      ]);
+    });
+
+    it('reports the 10-entry limit and still checks every entry past it', () => {
+      const ids = Array.from({ length: 11 }, () => 'gone');
+      const errors = pass(stack([card('a', { objects: [aiField('ai', ids)] })]));
+      const path = '/cards/0/objects/0/inputObjectIds';
+      expect(errors.filter((line) => line === `LIMIT_EXCEEDED ${path}`)).toHaveLength(1);
+      expect(errors.filter((line) => line.startsWith('DANGLING_REFERENCE '))).toHaveLength(11);
+      expect(errors.filter((line) => line.startsWith('INVALID_VALUE '))).toHaveLength(10);
+    });
+
+    it('skips a missing or non-array inputObjectIds (the structural pass reports it)', () => {
+      const without = aiField('ai');
+      delete without['inputObjectIds'];
+      expect(inputs(without)).toEqual([]);
+      expect(inputs(aiField('ai', [], { inputObjectIds: 'f' }))).toEqual([]);
+    });
+
+    it('does not check inputs of an Object that is not an ai-field', () => {
+      expect(inputs(field('f', { inputObjectIds: ['gone'] }))).toEqual([]);
     });
   });
 
@@ -337,9 +647,25 @@ describe('runSemanticPass', () => {
       ]);
     });
 
-    it('skips an unsupported-type Object and an unusable card size', () => {
-      const image = { id: 'pic', type: 'image', x: 500, y: 500, width: 500, height: 500 };
-      expect(pass(stack([card('a', { objects: [image] })]))).toEqual([]);
+    it('checks image and ai-field Objects too', () => {
+      const candidate = stack([
+        card('a', {
+          objects: [
+            image('pic', { x: 150, width: 100 }),
+            aiField('ai', [], { y: 190, height: 40 }),
+            image('ok', { x: 150, y: 150, width: 50, height: 50 }),
+          ],
+        }),
+      ]);
+      expect(pass(candidate)).toEqual([
+        'OUT_OF_BOUNDS /cards/0/objects/0',
+        'OUT_OF_BOUNDS /cards/0/objects/1',
+      ]);
+    });
+
+    it('skips an unknown-type Object and an unusable card size', () => {
+      const mystery = { id: 'pic', type: 'mystery', x: 500, y: 500, width: 500, height: 500 };
+      expect(pass(stack([card('a', { objects: [mystery] })]))).toEqual([]);
       expect(
         pass(stack([card('a', { objects: [field('f', { x: 999 })] })], { cardWidth: 'wide' })),
       ).toEqual([]);
@@ -372,9 +698,9 @@ describe('runSemanticPass', () => {
   });
 
   describe('Handlers on Buttons and Cards', () => {
-    it('skips unsupported and unknown Action types and non-record Actions', () => {
+    it('skips unknown Action types and non-record Actions', () => {
       const actions = [
-        { type: 'run_ai_field', targetObjectId: 'gone' },
+        { type: 'nope', targetObjectId: 'gone' },
         { type: 'mystery', cardId: 'gone' },
         { cardId: 'gone' },
         'go_to_card',
@@ -384,9 +710,12 @@ describe('runSemanticPass', () => {
       expect(pass(candidate)).toEqual([]);
     });
 
-    it('walks Handlers past the 20-action limit (the structural pass reports the limit)', () => {
+    it('reports the 20-action limit and still walks every action past it', () => {
       const actions = Array.from({ length: 21 }, () => ({ type: 'go_to_card', cardId: 'gone' }));
-      expect(pass(stack([card('a', { onOpen: actions })]))).toHaveLength(21);
+      const errors = pass(stack([card('a', { onOpen: actions })]));
+      expect(errors).toHaveLength(22);
+      expect(errors.filter((line) => line.startsWith('LIMIT_EXCEEDED '))).toHaveLength(1);
+      expect(errors.filter((line) => line.startsWith('DANGLING_REFERENCE '))).toHaveLength(21);
     });
 
     it('does not walk the onClick of an Object that is not a button', () => {
@@ -931,9 +1260,27 @@ describe('validateHandler: semantic rules end to end', () => {
     expect(errors[1]).toMatchObject({ code: 'DANGLING_REFERENCE', path: '/0/cardId' });
   });
 
-  it('skips unsupported Actions for the semantic rules, reporting only the type', () => {
-    expect(handlerRun([{ type: 'run_ai_field', targetObjectId: 'gone' }])).toEqual([
+  it('skips an Action of an unknown type for the semantic rules, reporting only the type', () => {
+    expect(handlerRun([{ type: 'nope', targetObjectId: 'gone' }])).toEqual([
       ['INVALID_VALUE', '/0/type'],
+    ]);
+  });
+
+  it('checks the references of the five new Actions', () => {
+    expect(
+      handlerRun([
+        { type: 'remove_item', targetObjectId: 'f', index: 0 },
+        { type: 'run_ai_field', targetObjectId: 'gone' },
+        { type: 'fetch_news', targetObjectId: 'f', topics: ['x'] },
+        { type: 'transcribe_audio', targetObjectId: 'l' },
+        { type: 'schedule_notification', message: 'm', atFromObjectId: 'l' },
+      ]),
+    ).toEqual([
+      ['WRONG_REFERENCE_TYPE', '/0/targetObjectId'],
+      ['DANGLING_REFERENCE', '/1/targetObjectId'],
+      ['WRONG_REFERENCE_TYPE', '/2/targetObjectId'],
+      ['WRONG_REFERENCE_TYPE', '/3/targetObjectId'],
+      ['WRONG_REFERENCE_TYPE', '/4/atFromObjectId'],
     ]);
   });
 });

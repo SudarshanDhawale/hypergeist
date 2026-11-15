@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  SUPPORTED_ACTION_TYPES,
-  SUPPORTED_OBJECT_TYPES,
-  UNSUPPORTED_ACTION_TYPES,
-  UNSUPPORTED_OBJECT_TYPES,
-} from './limits.ts';
+import { ACTION_TYPES, OBJECT_TYPES } from './limits.ts';
 import { StackSchema } from './schemas.ts';
 import { validateHandler, validateStack } from './validate.ts';
 
@@ -39,6 +34,31 @@ const list = (id: string): Raw => ({
   ordered: false,
 });
 
+const image = (id: string): Raw => ({
+  id,
+  type: 'image',
+  name: '',
+  x: 0,
+  y: 170,
+  width: 100,
+  height: 100,
+  src: 'https://example.com/a.png',
+  alt: 'A picture',
+});
+
+const aiField = (id: string, inputObjectIds: string[] = []): Raw => ({
+  id,
+  type: 'ai-field',
+  name: '',
+  x: 0,
+  y: 260,
+  width: 100,
+  height: 40,
+  prompt: 'Summarize',
+  inputObjectIds,
+  value: '',
+});
+
 const button = (id: string, onClick: unknown[] = []): Raw => ({
   id,
   type: 'button',
@@ -70,64 +90,114 @@ function summary(result: {
   return result.errors.map((error) => [error.code, error.path]);
 }
 
-const objectTypeMessage = (type: string): string =>
-  `The object type "${type}" is not supported in this release.`;
-const actionTypeMessage = (type: string): string =>
-  `The action type "${type}" is not supported in this release.`;
+const objectTypeMessage = (type: string): string => `The object type "${type}" is unknown.`;
+const actionTypeMessage = (type: string): string => `The action type "${type}" is unknown.`;
 
-describe('unsupported Object types (5.1, 5.4, 5.5)', () => {
-  it.each(UNSUPPORTED_OBJECT_TYPES)(
-    'rejects the Object type %s at .../type, with nothing else reported',
-    (type) => {
-      // The extra property and the bad id would be property-level errors on a supported type.
-      const candidate = stackWith([
-        field('first'),
-        { type, id: 'NOT AN ID', x: -5, bogus: true, name: 7 },
-      ]);
-      const result = validateStack(candidate);
-      expect(result.valid).toBe(false);
-      expect(result.truncated).toBe(false);
-      expect(result.errors).toHaveLength(1);
-      const [error] = result.errors;
-      expect(error).toMatchObject({
-        code: 'INVALID_VALUE',
-        path: '/cards/0/objects/1/type',
-        actual: JSON.stringify(type),
-        message: objectTypeMessage(type),
-        hint: `Use one of: ${SUPPORTED_OBJECT_TYPES.join(', ')}.`,
-      });
-      expect(error?.message).toContain('not supported in this release');
-      expect(error?.expected.length).toBeGreaterThan(0);
-    },
-  );
+/** One complete Action of each of the five types that the engine only validates. */
+const newActions: readonly [string, Raw][] = [
+  ['remove_item', { type: 'remove_item', targetObjectId: 'l', index: 0 }],
+  ['run_ai_field', { type: 'run_ai_field', targetObjectId: 'answer' }],
+  ['fetch_news', { type: 'fetch_news', targetObjectId: 'l', topics: ['technology'] }],
+  ['transcribe_audio', { type: 'transcribe_audio', targetObjectId: 'f' }],
+  [
+    'schedule_notification',
+    { type: 'schedule_notification', message: 'Time', at: '2026-12-01T09:00:00Z' },
+  ],
+];
 
-  it('rejects an unsupported Object type that carries no other property', () => {
-    const result = validateStack(stackWith([{ type: 'image' }]));
-    expect(summary(result)).toEqual([['INVALID_VALUE', '/cards/0/objects/0/type']]);
+/** The Objects that the references of `newActions` point at. */
+const referenced = (): Raw[] => [field('f'), list('l'), aiField('answer', ['f'])];
+
+describe('Object types are valid when complete (3.2, 4.3, 4.6)', () => {
+  it.each([
+    ['image', image('pic')],
+    ['ai-field', aiField('answer')],
+  ] as const)('accepts a complete %s Object', (_type, object) => {
+    const result = validateStack(stackWith([field('first'), object]));
+    expect(result.errors).toEqual([]);
+    expect(result.valid).toBe(true);
+    expect(result.truncated).toBe(false);
   });
 
-  it('reports each unsupported Object in its own position, in document order', () => {
+  it('accepts every Object type together on one Card', () => {
     const result = validateStack(
-      stackWith([{ type: 'ai-field' }, field('f'), { type: 'image' }, list('l')]),
+      stackWith([button('go'), field('f'), image('pic'), list('l'), aiField('answer', ['f'])]),
     );
-    expect(summary(result)).toEqual([
-      ['INVALID_VALUE', '/cards/0/objects/0/type'],
-      ['INVALID_VALUE', '/cards/0/objects/2/type'],
-    ]);
-    expect(result.errors.map((e) => e.message)).toEqual([
-      objectTypeMessage('ai-field'),
-      objectTypeMessage('image'),
-    ]);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
   });
 
-  it('reports an Object type that is only valid for Actions as unknown, not unsupported', () => {
+  it('lists all five Object types in the hint for an unknown type', () => {
+    expect(OBJECT_TYPES).toEqual(['button', 'field', 'image', 'list', 'ai-field']);
+    const result = validateStack(stackWith([{ type: 'nope' }]));
+    expect(result.errors[0]?.hint).toBe(`Use one of: ${OBJECT_TYPES.join(', ')}.`);
+  });
+
+  it('reports a property error, not a type error, for an incomplete image or ai-field', () => {
+    const result = validateStack(stackWith([{ type: 'image' }, { type: 'ai-field' }]));
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+    for (const error of result.errors) {
+      expect(error.code).toBe('MISSING_PROPERTY');
+      expect(error.path).toMatch(/^\/cards\/0\/objects\/[01]$/);
+    }
+  });
+
+  it('reports an Object type that is only valid for Actions as unknown', () => {
     const result = validateStack(stackWith([{ type: 'remove_item' }]));
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]?.message).toBe('The object type "remove_item" is unknown.');
+    expect(result.errors[0]?.message).toBe(objectTypeMessage('remove_item'));
   });
 });
 
-describe('unsupported Action types (5.2, 5.4, 5.5)', () => {
+describe('new Action types are valid when complete (6.2, 6.13)', () => {
+  const placements: readonly [string, (action: unknown) => Raw][] = [
+    ['a Card onOpen Handler', (action) => stackWith(referenced(), [action])],
+    [
+      'a Button onClick Handler',
+      (action) => stackWith([...referenced(), button('go', [action])], []),
+    ],
+  ];
+
+  describe.each(placements)('in %s', (_name, build) => {
+    it.each(newActions)('accepts a complete %s Action', (_type, action) => {
+      const result = validateStack(build(action));
+      expect(result.errors).toEqual([]);
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  it('accepts all nine Action types together in one Handler', () => {
+    const handler: unknown[] = [
+      { type: 'go_to_card', cardId: 'home' },
+      { type: 'set_value', targetObjectId: 'f', value: 'x' },
+      { type: 'append_item', targetObjectId: 'l', item: 'x' },
+      ...newActions.map(([, action]) => action),
+      { type: 'show_message', text: 'hi' },
+    ];
+    expect(handler.map((action) => (action as Raw)['type']).sort()).toEqual(
+      [...ACTION_TYPES].sort(),
+    );
+    expect(validateStack(stackWith(referenced(), handler)).errors).toEqual([]);
+  });
+
+  it('lists all nine Action types in the hint for an unknown type', () => {
+    expect(ACTION_TYPES).toHaveLength(9);
+    const result = validateStack(stackWith([], [{ type: 'nope' }]));
+    expect(result.errors[0]?.hint).toBe(`Use one of: ${ACTION_TYPES.join(', ')}.`);
+  });
+
+  it('reports a property error, not a type error, for an incomplete new Action', () => {
+    const result = validateStack(stackWith([], [{ type: 'remove_item' }]));
+    expect(result.valid).toBe(false);
+    expect(summary(result)).toEqual([
+      ['MISSING_PROPERTY', '/cards/0/onOpen/0'],
+      ['MISSING_PROPERTY', '/cards/0/onOpen/0'],
+    ]);
+  });
+});
+
+describe('unknown Action types (5.2, 5.4, 5.5)', () => {
   const placements: readonly [string, (action: unknown) => Raw, string][] = [
     ['a Card onOpen Handler', (action) => stackWith([], [action]), '/cards/0/onOpen/0/type'],
     [
@@ -138,34 +208,31 @@ describe('unsupported Action types (5.2, 5.4, 5.5)', () => {
   ];
 
   describe.each(placements)('in %s', (_name, build, path) => {
-    it.each(UNSUPPORTED_ACTION_TYPES)(
-      'rejects the Action type %s at .../type, with nothing else reported',
-      (type) => {
-        const result = validateStack(
-          build({ type, targetObjectId: 'NOT AN ID', bogus: 1, text: 5 }),
-        );
-        expect(result.valid).toBe(false);
-        expect(result.errors).toHaveLength(1);
-        const [error] = result.errors;
-        expect(error).toMatchObject({
-          code: 'INVALID_VALUE',
-          path,
-          actual: JSON.stringify(type),
-          message: actionTypeMessage(type),
-          hint: `Use one of: ${SUPPORTED_ACTION_TYPES.join(', ')}.`,
-        });
-        expect(error?.message).toContain('not supported in this release');
-      },
-    );
+    it('rejects an unknown Action type at .../type, with nothing else reported', () => {
+      const result = validateStack(
+        build({ type: 'nope', targetObjectId: 'NOT AN ID', bogus: 1, text: 5 }),
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      const [error] = result.errors;
+      expect(error).toMatchObject({
+        code: 'INVALID_VALUE',
+        path,
+        actual: JSON.stringify('nope'),
+        message: actionTypeMessage('nope'),
+        hint: `Use one of: ${ACTION_TYPES.join(', ')}.`,
+      });
+      expect(error?.message).not.toContain('not supported in this release');
+    });
   });
 
-  it('reports only the unsupported Action in a Handler that mixes valid and invalid Actions', () => {
+  it('reports only the unknown Action in a Handler that mixes valid and invalid Actions', () => {
     const result = validateStack(
       stackWith(
         [],
         [
           { type: 'show_message', text: 'hi' },
-          { type: 'run_ai_field' },
+          { type: 'nope' },
           { type: 'go_to_card', cardId: 'home' },
         ],
       ),
@@ -173,26 +240,31 @@ describe('unsupported Action types (5.2, 5.4, 5.5)', () => {
     expect(summary(result)).toEqual([['INVALID_VALUE', '/cards/0/onOpen/1/type']]);
   });
 
-  it('does not run semantic checks on an unsupported Action', () => {
+  it('does not run semantic checks on an unknown Action', () => {
     // "gone" would be DANGLING_REFERENCE if the Action were treated as go_to_card.
-    const result = validateStack(stackWith([], [{ type: 'fetch_news', cardId: 'gone' }]));
+    const result = validateStack(stackWith([], [{ type: 'nope', cardId: 'gone' }]));
     expect(summary(result)).toEqual([['INVALID_VALUE', '/cards/0/onOpen/0/type']]);
   });
 
-  it('reports an Action type that is only valid for Objects as unknown, not unsupported', () => {
+  it('reports an Action type that is only valid for Objects as unknown', () => {
     const result = validateStack(stackWith([], [{ type: 'image' }]));
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]?.message).toBe('The action type "image" is unknown.');
   });
 
-  it.each(UNSUPPORTED_ACTION_TYPES)('validateHandler rejects %s at /0/type', (type) => {
+  it.each(newActions)('validateHandler accepts a complete %s Action', (_type, action) => {
+    const stack = StackSchema.parse(stackWith(referenced()));
+    expect(validateHandler(stack, [action])).toEqual({ valid: true, errors: [], truncated: false });
+  });
+
+  it('validateHandler rejects an unknown Action type at /0/type', () => {
     const stack = StackSchema.parse(stackWith([field('f')]));
-    const result = validateHandler(stack, [{ type }]);
+    const result = validateHandler(stack, [{ type: 'nope' }]);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toMatchObject({
       code: 'INVALID_VALUE',
       path: '/0/type',
-      message: actionTypeMessage(type),
+      message: actionTypeMessage('nope'),
     });
   });
 });
@@ -206,7 +278,7 @@ describe('unknown, absent, and non-string types (5.3)', () => {
       path: '/cards/0/objects/0/type',
       message: 'The object type "widget" is unknown.',
       actual: '"widget"',
-      hint: `Use one of: ${SUPPORTED_OBJECT_TYPES.join(', ')}.`,
+      hint: `Use one of: ${OBJECT_TYPES.join(', ')}.`,
     });
   });
 
@@ -217,7 +289,7 @@ describe('unknown, absent, and non-string types (5.3)', () => {
       code: 'INVALID_VALUE',
       path: '/cards/0/onOpen/0/type',
       message: 'The action type "dance" is unknown.',
-      hint: `Use one of: ${SUPPORTED_ACTION_TYPES.join(', ')}.`,
+      hint: `Use one of: ${ACTION_TYPES.join(', ')}.`,
     });
   });
 
@@ -309,25 +381,23 @@ describe('unknown, absent, and non-string types (5.3)', () => {
   });
 });
 
-describe('unsupported types combined with the semantic pass', () => {
-  it('still counts the id of an unsupported Object as taken (DUPLICATE_ID)', () => {
-    const result = validateStack(stackWith([{ type: 'image', id: 'pic' }, field('pic')]));
-    expect(summary(result)).toEqual([
-      ['INVALID_VALUE', '/cards/0/objects/0/type'],
-      ['DUPLICATE_ID', '/cards/0/objects/1/id'],
-    ]);
+describe('Object types combined with the semantic pass', () => {
+  it('counts the id of an image as taken (DUPLICATE_ID)', () => {
+    const result = validateStack(stackWith([image('pic'), field('pic')]));
+    expect(summary(result)).toEqual([['DUPLICATE_ID', '/cards/0/objects/1/id']]);
   });
 
-  it('reports a reference to an unsupported Object as WRONG_REFERENCE_TYPE after the type error', () => {
+  it('reports a set_value that targets an image as WRONG_REFERENCE_TYPE', () => {
     const result = validateStack(
-      stackWith(
-        [{ type: 'ai-field', id: 'pic' }],
-        [{ type: 'set_value', targetObjectId: 'pic', value: '' }],
-      ),
+      stackWith([image('pic')], [{ type: 'set_value', targetObjectId: 'pic', value: '' }]),
     );
-    expect(summary(result)).toEqual([
-      ['INVALID_VALUE', '/cards/0/objects/0/type'],
-      ['WRONG_REFERENCE_TYPE', '/cards/0/onOpen/0/targetObjectId'],
-    ]);
+    expect(summary(result)).toEqual([['WRONG_REFERENCE_TYPE', '/cards/0/onOpen/0/targetObjectId']]);
+  });
+
+  it('accepts a set_value that targets an ai-field', () => {
+    const result = validateStack(
+      stackWith([aiField('answer')], [{ type: 'set_value', targetObjectId: 'answer', value: 'x' }]),
+    );
+    expect(result.errors).toEqual([]);
   });
 });

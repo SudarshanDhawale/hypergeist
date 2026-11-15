@@ -1,12 +1,13 @@
-import { SUPPORTED_ACTION_TYPES, SUPPORTED_OBJECT_TYPES } from './limits.ts';
+import { ACTION_TYPES, LIMITS, OBJECT_TYPES } from './limits.ts';
 import type { ValidationErrorCode } from './errors.ts';
+import { limitMessages } from './limit-messages.ts';
 
 /**
  * Semantic pass: cross-entity rules (ids, references, bounds, links, exactly-one-of).
  *
  * It walks the raw, unvalidated candidate with type guards and never imports the
  * Zod schemas. Any subtree that does not have the expected shape is skipped,
- * because the structural pass reports it. Objects and Actions of an unsupported
+ * because the structural pass reports it. Objects and Actions of an unknown
  * type are skipped too, except that an Object's `id` is still registered.
  */
 
@@ -31,6 +32,8 @@ export type EntityKind = 'card' | 'object' | 'link';
 
 export type EntityInfo = {
   readonly kind: EntityKind;
+  /** Index of the Card that owns the entity (a Card owns itself). */
+  readonly cardIndex: number;
   /** The Object `type` when it is a string. Only set for `kind: 'object'`. */
   readonly objectType?: string;
 };
@@ -41,9 +44,17 @@ export type EntityIndex = ReadonlyMap<string, EntityInfo>;
 /** What a reference property may point at. */
 type Target = 'card' | readonly string[];
 
-const FIELD_ONLY: Target = ['field'];
 const LIST_ONLY: Target = ['list'];
-const FIELD_OR_LIST: Target = ['field', 'list'];
+/** `run_ai_field.targetObjectId`. */
+const AI_FIELD_ONLY: Target = ['ai-field'];
+/** `transcribe_audio.targetObjectId`, `schedule_notification.atFromObjectId`. */
+const FIELD_ONLY: Target = ['field'];
+/** `set_value.targetObjectId`, `append_item.fromObjectId`. */
+const FIELD_OR_AI_FIELD: Target = ['field', 'ai-field'];
+/** `set_value.fromObjectId`. */
+const FIELD_AI_FIELD_OR_LIST: Target = ['field', 'ai-field', 'list'];
+/** Objects an ai-field may read as input (also needs the same Card). */
+const AI_INPUT_TYPES: readonly string[] = ['field', 'list', 'ai-field'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -74,7 +85,12 @@ function shown(text: string): string {
 
 function describeTarget(target: Target): string {
   if (target === 'card') return 'a card';
-  return target.length === 1 ? `a ${target[0]} object` : `a ${target.join(' or ')} object`;
+  if (target.length === 1) return `a ${target[0]} object`;
+  const last = target[target.length - 1];
+  const head = target.slice(0, -1);
+  const joined =
+    target.length === 2 ? `${head.join('')} or ${last}` : `${head.join(', ')}, or ${last}`;
+  return `a ${joined} object`;
 }
 
 function describeEntity(info: EntityInfo): string {
@@ -124,7 +140,7 @@ export function buildEntityIndex(candidate: unknown): {
   if (Array.isArray(cards)) {
     cards.forEach((card: unknown, cardIndex) => {
       if (!isRecord(card)) return;
-      register(['cards', cardIndex, 'id'], getOwn(card, 'id'), { kind: 'card' });
+      register(['cards', cardIndex, 'id'], getOwn(card, 'id'), { kind: 'card', cardIndex });
 
       const objects = getOwn(card, 'objects');
       if (Array.isArray(objects)) {
@@ -133,6 +149,7 @@ export function buildEntityIndex(candidate: unknown): {
           const type = getOwn(object, 'type');
           register(['cards', cardIndex, 'objects', objectIndex, 'id'], getOwn(object, 'id'), {
             kind: 'object',
+            cardIndex,
             ...(isString(type) ? { objectType: type } : {}),
           });
         });
@@ -144,6 +161,7 @@ export function buildEntityIndex(candidate: unknown): {
           if (!isRecord(link)) return;
           register(['cards', cardIndex, 'links', linkIndex, 'id'], getOwn(link, 'id'), {
             kind: 'link',
+            cardIndex,
           });
         });
       }
@@ -187,6 +205,39 @@ function checkReference(
   }
 }
 
+/**
+ * Reports `LIMIT_EXCEEDED` at `path` when the raw value is an array with more than `max`
+ * items. Anything that is not an array is skipped (the structural pass reports it). Zod
+ * does not enforce array maximums, so an oversize array still has its elements checked.
+ */
+export function checkArrayLimit(
+  value: unknown,
+  path: Segments,
+  max: number,
+): SemanticError | undefined {
+  if (!Array.isArray(value) || value.length <= max) return undefined;
+  const texts = limitMessages('array', max, value.length);
+  return {
+    code: 'LIMIT_EXCEEDED',
+    segments: path,
+    message: texts.message,
+    expected: texts.expected,
+    hint: texts.hint,
+    actual: present(value),
+  };
+}
+
+/** Pushes the error of `checkArrayLimit`, if there is one. */
+function pushArrayLimit(
+  value: unknown,
+  path: Segments,
+  max: number,
+  errors: SemanticError[],
+): void {
+  const found = checkArrayLimit(value, path, max);
+  if (found !== undefined) errors.push(found);
+}
+
 /** Reports `INVALID_VALUE` when both or neither property of an exactly-one-of pair is present. */
 function checkExactlyOne(
   action: Record<string, unknown>,
@@ -221,21 +272,43 @@ function walkAction(
 ): void {
   if (!isRecord(action)) return;
   const type = getOwn(action, 'type');
-  if (!isString(type) || !(SUPPORTED_ACTION_TYPES as readonly string[]).includes(type)) return;
+  if (!isString(type) || !(ACTION_TYPES as readonly string[]).includes(type)) return;
 
   switch (type) {
     case 'go_to_card':
       checkReference(action, 'cardId', actionPath, index, 'card', errors);
       break;
     case 'set_value':
-      checkReference(action, 'targetObjectId', actionPath, index, FIELD_ONLY, errors);
-      checkReference(action, 'fromObjectId', actionPath, index, FIELD_OR_LIST, errors);
+      checkReference(action, 'targetObjectId', actionPath, index, FIELD_OR_AI_FIELD, errors);
+      checkReference(action, 'fromObjectId', actionPath, index, FIELD_AI_FIELD_OR_LIST, errors);
       checkExactlyOne(action, 'value', 'fromObjectId', actionPath, errors);
       break;
     case 'append_item':
       checkReference(action, 'targetObjectId', actionPath, index, LIST_ONLY, errors);
-      checkReference(action, 'fromObjectId', actionPath, index, FIELD_ONLY, errors);
+      checkReference(action, 'fromObjectId', actionPath, index, FIELD_OR_AI_FIELD, errors);
       checkExactlyOne(action, 'item', 'fromObjectId', actionPath, errors);
+      break;
+    case 'remove_item':
+      checkReference(action, 'targetObjectId', actionPath, index, LIST_ONLY, errors);
+      break;
+    case 'run_ai_field':
+      checkReference(action, 'targetObjectId', actionPath, index, AI_FIELD_ONLY, errors);
+      break;
+    case 'fetch_news':
+      checkReference(action, 'targetObjectId', actionPath, index, LIST_ONLY, errors);
+      pushArrayLimit(
+        getOwn(action, 'topics'),
+        [...actionPath, 'topics'],
+        LIMITS.newsTopics.max,
+        errors,
+      );
+      break;
+    case 'transcribe_audio':
+      checkReference(action, 'targetObjectId', actionPath, index, FIELD_ONLY, errors);
+      break;
+    case 'schedule_notification':
+      checkReference(action, 'atFromObjectId', actionPath, index, FIELD_ONLY, errors);
+      checkExactlyOne(action, 'at', 'atFromObjectId', actionPath, errors);
       break;
     default:
       // show_message has no reference and no exactly-one-of pair.
@@ -246,7 +319,7 @@ function walkAction(
 /**
  * The one Handler walker. Buttons (`onClick`), Cards (`onOpen`), and
  * `validateHandler` (with `handlerPath` of `[]`) all call it. A candidate that
- * is not an array, and any element that is not a supported Action, is skipped.
+ * is not an array, and any element that is not an Action of a known type, is skipped.
  */
 export function walkHandler(
   handler: unknown,
@@ -254,6 +327,7 @@ export function walkHandler(
   index: EntityIndex,
 ): readonly SemanticError[] {
   const errors: SemanticError[] = [];
+  pushArrayLimit(handler, handlerPath, LIMITS.handlerActions.max, errors);
   if (Array.isArray(handler)) {
     handler.forEach((action: unknown, actionIndex) => {
       walkAction(action, [...handlerPath, actionIndex], index, errors);
@@ -330,9 +404,101 @@ function checkLinks(
   });
 }
 
+/** Pushes a `WRONG_REFERENCE_TYPE` error for one `inputObjectIds` entry. */
+function wrongInput(
+  segments: Segments,
+  value: string,
+  aiFieldId: string,
+  reason: string,
+  errors: SemanticError[],
+): void {
+  errors.push({
+    code: 'WRONG_REFERENCE_TYPE',
+    segments,
+    message: `The ai-field "${shown(aiFieldId)}" cannot use "${shown(value)}" as an input, because ${reason}.`,
+    expected:
+      'the id of a field, list, or ai-field object on the same card, other than the ai-field itself',
+    hint: 'Use the id of a field, list, or another ai-field on the same card, or remove this entry.',
+    actual: present(value),
+  });
+}
+
+/** Checks every entry of an ai-field's `inputObjectIds` (4.7, 4.8) and reports repeated ids. */
+function checkAiInputs(
+  aiField: Record<string, unknown>,
+  objectPath: Segments,
+  cardIndex: number,
+  index: EntityIndex,
+  errors: SemanticError[],
+): void {
+  const inputs = getOwn(aiField, 'inputObjectIds');
+  const inputsPath: Segments = [...objectPath, 'inputObjectIds'];
+  const ownId = getOwn(aiField, 'id');
+  const aiFieldId = isString(ownId) ? ownId : '(no id)';
+  const tooMany = checkArrayLimit(inputs, inputsPath, LIMITS.aiInputObjects.max);
+  if (tooMany !== undefined) {
+    errors.push({
+      ...tooMany,
+      message: `${tooMany.message} This is in the ai-field object "${shown(aiFieldId)}".`,
+    });
+  }
+  if (!Array.isArray(inputs)) return;
+  const seen = new Set<string>();
+
+  inputs.forEach((entry: unknown, entryIndex) => {
+    if (!isString(entry)) return;
+    const segments = [...inputsPath, entryIndex];
+
+    if (seen.has(entry)) {
+      errors.push({
+        code: 'INVALID_VALUE',
+        segments,
+        message: `The ai-field "${shown(aiFieldId)}" lists the input "${shown(entry)}" more than once.`,
+        expected: 'each input id at most once',
+        hint: 'Remove the repeated entry.',
+        actual: present(entry),
+      });
+    }
+    seen.add(entry);
+
+    const info = index.get(entry);
+    if (info === undefined) {
+      errors.push({
+        code: 'DANGLING_REFERENCE',
+        segments,
+        message: `The id "${shown(entry)}" in the inputs of ai-field "${shown(aiFieldId)}" does not match any entity in this stack.`,
+        expected: 'the id of a field, list, or ai-field object on the same card',
+        hint: 'Use the id of a field, list, or ai-field on the same card, or remove this entry.',
+        actual: present(entry),
+      });
+    } else if (entry === ownId) {
+      wrongInput(segments, entry, aiFieldId, 'an ai-field cannot use itself as an input', errors);
+    } else if (info.kind !== 'object') {
+      wrongInput(
+        segments,
+        entry,
+        aiFieldId,
+        `it is ${describeEntity(info)}, not an object`,
+        errors,
+      );
+    } else if (info.objectType === undefined || !AI_INPUT_TYPES.includes(info.objectType)) {
+      wrongInput(
+        segments,
+        entry,
+        aiFieldId,
+        `it is ${describeEntity(info)}, and only field, list, and ai-field objects can be inputs`,
+        errors,
+      );
+    } else if (info.cardIndex !== cardIndex) {
+      wrongInput(segments, entry, aiFieldId, 'it is on a different card', errors);
+    }
+  });
+}
+
 function walkObject(
   object: unknown,
   objectPath: Segments,
+  cardIndex: number,
   index: EntityIndex,
   cardWidth: unknown,
   cardHeight: unknown,
@@ -340,11 +506,15 @@ function walkObject(
 ): void {
   if (!isRecord(object)) return;
   const type = getOwn(object, 'type');
-  if (!isString(type) || !(SUPPORTED_OBJECT_TYPES as readonly string[]).includes(type)) return;
+  if (!isString(type) || !(OBJECT_TYPES as readonly string[]).includes(type)) return;
 
   checkBounds(object, objectPath, cardWidth, cardHeight, errors);
   if (type === 'button') {
     errors.push(...walkHandler(getOwn(object, 'onClick'), [...objectPath, 'onClick'], index));
+  } else if (type === 'list') {
+    pushArrayLimit(getOwn(object, 'items'), [...objectPath, 'items'], LIMITS.listItems.max, errors);
+  } else if (type === 'ai-field') {
+    checkAiInputs(object, objectPath, cardIndex, index, errors);
   }
 }
 
@@ -364,17 +534,20 @@ export function runSemanticPass(candidate: unknown): readonly SemanticError[] {
   const cardHeight = getOwn(candidate, 'cardHeight');
   const cards = getOwn(candidate, 'cards');
   if (!Array.isArray(cards)) return errors;
+  pushArrayLimit(cards, ['cards'], LIMITS.cards.max, errors);
 
   cards.forEach((card: unknown, cardIndex) => {
     if (!isRecord(card)) return;
     const cardPath: Segments = ['cards', cardIndex];
 
     const objects = getOwn(card, 'objects');
+    pushArrayLimit(objects, [...cardPath, 'objects'], LIMITS.objectsPerCard.max, errors);
     if (Array.isArray(objects)) {
       objects.forEach((object: unknown, objectIndex) => {
         walkObject(
           object,
           [...cardPath, 'objects', objectIndex],
+          cardIndex,
           index,
           cardWidth,
           cardHeight,
@@ -384,6 +557,7 @@ export function runSemanticPass(candidate: unknown): readonly SemanticError[] {
     }
 
     const links = getOwn(card, 'links');
+    pushArrayLimit(links, [...cardPath, 'links'], LIMITS.linksPerCard.max, errors);
     if (Array.isArray(links)) {
       checkLinks(links, [...cardPath, 'links'], index, errors);
     }

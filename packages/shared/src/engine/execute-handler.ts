@@ -35,7 +35,11 @@ function applyEdit(stack: Stack, action: Action, index: number): Step {
   if (action.type === 'set_value') {
     const target = findObject(stack, action.targetObjectId);
     const text = sourceText(stack, action.value, action.fromObjectId);
-    if (target === undefined || target.type !== 'field' || text === undefined) {
+    if (
+      target === undefined ||
+      (target.type !== 'field' && target.type !== 'ai-field') ||
+      text === undefined
+    ) {
       return {
         stack,
         message: skippedMessage(index, action.type, 'its target or source was not found'),
@@ -69,7 +73,10 @@ function applyEdit(stack: Stack, action: Action, index: number): Step {
           message: skippedMessage(index, action.type, 'the result would not be a valid stack'),
         };
   }
-  return { stack, message: skippedMessage(index, 'unknown', 'this action type is not supported') };
+  return {
+    stack,
+    message: skippedMessage(index, action.type, 'this action type is not supported'),
+  };
 }
 
 /**

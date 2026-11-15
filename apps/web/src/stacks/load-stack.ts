@@ -1,4 +1,4 @@
-import { StackSchema, validateStack } from '@hypergeist/shared/format';
+import { parseStack } from '@hypergeist/shared/format';
 import type { Stack, ValidationError } from '@hypergeist/shared/format';
 
 export type LoadStackResult =
@@ -6,14 +6,13 @@ export type LoadStackResult =
   | { readonly ok: false; readonly errors: readonly ValidationError[] };
 
 /**
- * Validates the bundled Stack text at startup. The validator runs first and reports
- * structured errors. For valid text, a second parse with `StackSchema` gives a typed
- * value without a cast. That second parse cannot fail once `validateStack` accepted the text.
+ * Parses the bundled Stack text at startup. `parseStack` validates the text and returns
+ * the typed Stack, or structured errors, without throwing.
  */
 export function loadStack(text: string): LoadStackResult {
-  const result = validateStack(text);
-  if (!result.valid) {
+  const result = parseStack(text);
+  if (!result.ok) {
     return { ok: false, errors: result.errors };
   }
-  return { ok: true, stack: StackSchema.parse(JSON.parse(text)) };
+  return { ok: true, stack: result.value };
 }

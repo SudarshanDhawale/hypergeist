@@ -4,23 +4,28 @@ export const FORMAT_VERSION = 1 as const;
 /** Entity_ID pattern shared with the full stack-format-and-validator spec. */
 export const ENTITY_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
-/** Object types the thin slice accepts. */
-export const SUPPORTED_OBJECT_TYPES = ['button', 'field', 'list'] as const;
+/**
+ * Image source pattern. ASCII only, so the UTF-16 length equals the code point count.
+ * Two alternatives:
+ * - `https:` URL: lowercase scheme, a non-empty authority without user info, then
+ *   optionally `/`, `?` or `#` followed by printable ASCII except space and backslash.
+ * - `data:` URI: `data:image/` with png, jpeg, gif or webp, `;base64,`, then a
+ *   non-empty, well-formed base64 payload (groups of four, with `=` padding at the end).
+ * The length limits (2,000 for `https:`, 1,000,000 overall) are separate checks.
+ */
+export const IMAGE_SRC_PATTERN =
+  /^(?:https:\/\/[A-Za-z0-9._~%!$&'()*+,;=:[\]-]+(?:[/?#][\x21-\x5B\x5D-\x7E]*)?|data:image\/(?:png|jpeg|gif|webp);base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/;
 
-/** Object types the full format defines but this release rejects. */
-export const UNSUPPORTED_OBJECT_TYPES = ['image', 'ai-field'] as const;
+/** Object types of the format, in the order used in hints. */
+export const OBJECT_TYPES = ['button', 'field', 'image', 'list', 'ai-field'] as const;
 
-/** Action types the thin slice accepts. */
-export const SUPPORTED_ACTION_TYPES = [
+/** Action types of the format, in glossary order (the order used in hints). */
+export const ACTION_TYPES = [
   'go_to_card',
   'set_value',
   'append_item',
-  'show_message',
-] as const;
-
-/** Action types the full format defines but this release rejects. */
-export const UNSUPPORTED_ACTION_TYPES = [
   'remove_item',
+  'show_message',
   'run_ai_field',
   'fetch_news',
   'transcribe_audio',
@@ -51,6 +56,16 @@ export const LIMITS = {
   setValueText: { min: 0, max: 10_000 },
   appendItemText: { min: 0, max: 500 },
   messageText: { min: 1, max: 500 },
+  imageAlt: { min: 0, max: 200 },
+  imageHttpsSrc: { min: 1, max: 2000 },
+  imageDataSrc: { min: 1, max: 1_000_000 },
+  aiPrompt: { min: 1, max: 2000 },
+  aiInputObjects: { min: 0, max: 10 },
+  aiFieldValue: { min: 0, max: 10_000 },
+  removeItemIndex: { min: 0 },
+  newsTopics: { min: 1, max: 10 },
+  newsTopicText: { min: 1, max: 100 },
+  notificationMessage: { min: 1, max: 500 },
   maxDocumentBytes: 2_097_152,
   maxErrors: 100,
   actualMaxChars: 200,
