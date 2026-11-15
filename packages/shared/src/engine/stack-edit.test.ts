@@ -6,7 +6,7 @@ import type {
   ListObject,
   Stack,
 } from '../format/index.ts';
-import { findObject, textOf, withObject } from './stack-edit.ts';
+import { findCard, findObject, textOf, withCard, withObject } from './stack-edit.ts';
 import type { ExecutionResult } from './types.ts';
 
 const frame = { x: 0, y: 0, width: 100, height: 30 };
@@ -144,6 +144,59 @@ describe('textOf', () => {
 
   it('returns the empty string for a Button', () => {
     expect(textOf(button)).toBe('');
+  });
+});
+
+describe('findCard', () => {
+  it('finds a Card by id', () => {
+    const stack = makeStack();
+    expect(findCard(stack, 'c1')).toBe(stack.cards[0]);
+    expect(findCard(stack, 'c2')).toBe(stack.cards[1]);
+  });
+
+  it('returns undefined for an unknown id or an Object id', () => {
+    const stack = deepFreeze(makeStack());
+    expect(findCard(stack, 'nope')).toBeUndefined();
+    expect(findCard(stack, 'note')).toBeUndefined();
+  });
+});
+
+describe('withCard', () => {
+  it('replaces the Card at the index and keeps the other Cards by identity', () => {
+    const stack = deepFreeze(makeStack());
+    const replacement = { id: 'c2', name: 'Renamed', objects: [], links: [], onOpen: [] };
+    const next = withCard(stack, 1, replacement);
+
+    expect(next).not.toBe(stack);
+    expect(next.cards[1]).toBe(replacement);
+    expect(next.cards[0]).toBe(stack.cards[0]);
+    expect(next.cards).toHaveLength(2);
+    expect(next.id).toBe(stack.id);
+    expect(next.startCardId).toBe(stack.startCardId);
+  });
+
+  it('does not write to its inputs', () => {
+    const stack = makeStack();
+    const before = structuredClone(stack);
+    const card = stack.cards[0];
+    withCard(stack, 0, { ...(card as NonNullable<typeof card>), name: 'Changed' });
+    expect(stack).toEqual(before);
+    expect(
+      withCard(deepFreeze(makeStack()), 0, {
+        id: 'c1',
+        name: 'X',
+        objects: [],
+        links: [],
+        onOpen: [],
+      }).cards[0]?.name,
+    ).toBe('X');
+  });
+
+  it('returns the same Stack for an index that is out of range', () => {
+    const stack = makeStack();
+    const card = { id: 'c3', name: 'Three', objects: [], links: [], onOpen: [] };
+    expect(withCard(stack, 2, card)).toBe(stack);
+    expect(withCard(stack, -1, card)).toBe(stack);
   });
 });
 

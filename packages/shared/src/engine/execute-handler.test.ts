@@ -11,6 +11,7 @@ import type {
   Stack,
   StackObject,
 } from '../format/index.ts';
+import { effectFor } from './effects.ts';
 import { executeHandler } from './execute-handler.ts';
 import { findObject } from './stack-edit.ts';
 
@@ -386,48 +387,153 @@ describe('executeHandler: skipped actions', () => {
   });
 });
 
-describe('executeHandler: Actions that are only validated', () => {
-  const unsupported: readonly Action[] = [
-    { type: 'remove_item', targetObjectId: 'items', index: 0 },
+describe('executeHandler: remove_item', () => {
+  it.each([
+    [0, ['b', 'c']],
+    [1, ['a', 'c']],
+    [2, ['a', 'b']],
+  ])('removes the item at index %i and keeps the order of the rest', (index, expected) => {
+    const stack = makeStack();
+    const result = executeHandler(stack, [{ type: 'remove_item', targetObjectId: 'items', index }]);
+    expect(listItems(result.stack, 'items')).toEqual(expected);
+    expect(listItems(stack, 'items')).toEqual(['a', 'b', 'c']);
+    expect(result.messages).toEqual([]);
+    expect(result.effects).toEqual([]);
+    expect(result).not.toHaveProperty('navigateTo');
+    expect(validateStack(result.stack).valid).toBe(true);
+  });
+
+  it.each([
+    ['items', 3],
+    ['items', 1000],
+    ['empty', 0],
+  ])('leaves the List %s unchanged, with no message, for out-of-range index %i', (id, index) => {
+    const stack = makeStack();
+    const result = executeHandler(stack, [{ type: 'remove_item', targetObjectId: id, index }]);
+    expect(result.stack).toEqual(stack);
+    expect(result.messages).toEqual([]);
+    expect(result.effects).toEqual([]);
+  });
+
+  it('shifts later indexes when several items are removed in a row', () => {
+    const result = executeHandler(makeStack(), [
+      { type: 'remove_item', targetObjectId: 'items', index: 0 },
+      { type: 'remove_item', targetObjectId: 'items', index: 0 },
+    ]);
+    expect(listItems(result.stack, 'items')).toEqual(['c']);
+  });
+});
+
+describe('executeHandler: effect Actions', () => {
+  const effectActions: readonly Action[] = [
     { type: 'run_ai_field', targetObjectId: 'ask' },
     { type: 'fetch_news', targetObjectId: 'items', topics: ['science'] },
     { type: 'transcribe_audio', targetObjectId: 'out' },
     { type: 'schedule_notification', message: 'Time is up', atFromObjectId: 'note' },
   ];
 
-  it.each(unsupported.map((action) => [action.type, action] as const))(
-    'skips %s with one message and leaves the Stack unchanged and valid',
+  it.each(effectActions.map((action) => [action.type, action] as const))(
+    '%s emits one effect and leaves the Stack unchanged and valid',
     (type, action) => {
       const stack = makeStack([makeAiField('ask', 'old')]);
-      expect(validateStack(stack).valid).toBe(true);
       const result = executeHandler(stack, [action]);
-      expect(result.messages).toEqual([
-        `Skipped action 1 (${type}): this action type is not supported.`,
-      ]);
       expect(result.stack).toEqual(stack);
       expect(validateStack(result.stack).valid).toBe(true);
-      expect(result.effects).toEqual([]);
+      expect(result.messages).toEqual([]);
+      expect(result.effects).toHaveLength(1);
+      expect(result.effects[0]).toMatchObject({ kind: type, actionIndex: 0 });
+      expect(result.effects[0]).toEqual(effectFor(stack, action, 0));
       expect(result).not.toHaveProperty('navigateTo');
     },
   );
 
-  it('reports the position of each skipped Action and keeps the other Actions working', () => {
+  it('appends effects in Action order with their positions, among other Actions', () => {
     const stack = makeStack([makeAiField('ask', 'old')]);
     const result = executeHandler(stack, [
       { type: 'set_value', targetObjectId: 'out', value: 'v' },
       { type: 'remove_item', targetObjectId: 'items', index: 1 },
       { type: 'show_message', text: 'between' },
       { type: 'schedule_notification', message: 'Later', at: '2030-01-01T09:00:00Z' },
+      { type: 'run_ai_field', targetObjectId: 'ask' },
     ]);
     expect(fieldValue(result.stack, 'out')).toBe('v');
-    expect(listItems(result.stack, 'items')).toEqual(['a', 'b', 'c']);
-    expect(result.messages).toEqual([
-      'Skipped action 2 (remove_item): this action type is not supported.',
-      'between',
-      'Skipped action 4 (schedule_notification): this action type is not supported.',
+    expect(listItems(result.stack, 'items')).toEqual(['a', 'c']);
+    expect(result.messages).toEqual(['between']);
+    expect(result.effects.map((effect) => [effect.kind, effect.actionIndex])).toEqual([
+      ['schedule_notification', 3],
+      ['run_ai_field', 4],
     ]);
-    expect(validateStack(result.stack).valid).toBe(true);
-    expect(result.effects).toEqual([]);
+  });
+
+  it('keeps effects produced before go_to_card and drops the ones after it', () => {
+    const result = executeHandler(makeStack(), [
+      { type: 'fetch_news', targetObjectId: 'items', topics: ['a'] },
+      { type: 'go_to_card', cardId: 'c2' },
+      { type: 'transcribe_audio', targetObjectId: 'out' },
+    ]);
+    expect(result.navigateTo).toBe('c2');
+    expect(result.effects.map((effect) => effect.kind)).toEqual(['fetch_news']);
+  });
+
+  it('reads the source text from the Stack as changed by earlier Actions', () => {
+    const result = executeHandler(makeStack(), [
+      { type: 'set_value', targetObjectId: 'note', value: '2030-01-01T09:00:00Z' },
+      { type: 'schedule_notification', message: 'm', atFromObjectId: 'note' },
+    ]);
+    expect(result.effects).toEqual([
+      {
+        kind: 'schedule_notification',
+        actionIndex: 1,
+        message: 'm',
+        at: '2030-01-01T09:00:00Z',
+        atFromObjectId: 'note',
+      },
+    ]);
+  });
+});
+
+describe('executeHandler: skip reasons', () => {
+  it('reports the position of an Action skipped for a limit while others still run', () => {
+    const stack = makeStack([makeField('long', 'x'.repeat(501))]);
+    const result = executeHandler(stack, [
+      { type: 'remove_item', targetObjectId: 'items', index: 0 },
+      { type: 'append_item', targetObjectId: 'items', fromObjectId: 'long' },
+    ]);
+    expect(listItems(result.stack, 'items')).toEqual(['b', 'c']);
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]).toMatch(/^Skipped action 2 \(append_item\)/);
+  });
+
+  it('never says an Action type is not supported', () => {
+    const stack = makeStack([makeAiField('ask', 'old')]);
+    const handler: Handler = [
+      { type: 'remove_item', targetObjectId: 'items', index: 9 },
+      { type: 'run_ai_field', targetObjectId: 'ask' },
+      { type: 'fetch_news', targetObjectId: 'items', topics: ['x'] },
+      { type: 'transcribe_audio', targetObjectId: 'out' },
+      { type: 'schedule_notification', message: 'm', at: '2030-01-01T09:00:00Z' },
+    ];
+    const result = executeHandler(stack, handler);
+    expect(result.messages).toEqual([]);
+    expect(result.effects).toHaveLength(4);
+  });
+
+  it('cannot reach the "unknown id" and "wrong type" skip reasons: the Handler is rejected first', () => {
+    const stack = makeStack();
+    const unknownId = executeHandler(stack, [
+      { type: 'remove_item', targetObjectId: 'nowhere', index: 0 },
+      { type: 'show_message', text: 'ran' },
+    ]);
+    const wrongType = executeHandler(stack, [
+      { type: 'remove_item', targetObjectId: 'note', index: 0 },
+      { type: 'show_message', text: 'ran' },
+    ]);
+    for (const result of [unknownId, wrongType]) {
+      expect(result.stack).toBe(stack);
+      expect(result.effects).toEqual([]);
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0]).toMatch(/handler is not valid/i);
+    }
   });
 });
 

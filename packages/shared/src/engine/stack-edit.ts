@@ -1,4 +1,4 @@
-import type { Stack, StackObject } from '../format/index.ts';
+import type { Card, Stack, StackObject } from '../format/index.ts';
 
 /**
  * Finds the first Object with the given id, searching Cards in order.
@@ -53,4 +53,26 @@ export function textOf(object: StackObject): string {
     default:
       return '';
   }
+}
+
+/**
+ * Finds the Card with the given id. Returns `undefined` when no Card has that id.
+ */
+export function findCard(stack: Stack, cardId: string): Card | undefined {
+  return stack.cards.find((card) => card.id === cardId);
+}
+
+/**
+ * Returns a new Stack in which the Card at `index` is replaced by `replacement`. Every
+ * other Card keeps its identity, and no input is written to, so deeply frozen inputs work.
+ * When `index` is not a valid position in `stack.cards`, the same Stack value is returned.
+ */
+export function withCard(stack: Stack, index: number, replacement: Card): Stack {
+  if (!Number.isInteger(index) || index < 0 || index >= stack.cards.length) {
+    return stack;
+  }
+  return {
+    ...stack,
+    cards: stack.cards.map((card, i) => (i === index ? replacement : card)),
+  };
 }

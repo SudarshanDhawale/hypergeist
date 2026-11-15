@@ -459,25 +459,34 @@ describe('status messages', () => {
   });
 });
 
-describe('Actions that are validated but not executable in this release', () => {
-  const removeItem: Handler = [{ type: 'remove_item', targetObjectId: 'todo-list', index: 0 }];
+describe('remove_item', () => {
+  it('removes the item at the index and shows no skip message', () => {
+    const onClick: Handler = [
+      { type: 'append_item', targetObjectId: 'todo-list', item: 'a' },
+      { type: 'append_item', targetObjectId: 'todo-list', item: 'b' },
+      { type: 'remove_item', targetObjectId: 'todo-list', index: 0 },
+    ];
+    const store = createStackStore(stackWithAddHandler(onClick));
+    store.getState().activateButton('todo-add');
 
-  it('shows the skip message for a remove_item Button and leaves the stack unchanged', () => {
+    expect(items(store)).toEqual(['b']);
+    expect(store.getState().status).toBeNull();
+    expect(executeSpy.mock.results[0]?.value.effects).toEqual([]);
+  });
+
+  it('does nothing and shows no message when the index is out of range', () => {
+    const removeItem: Handler = [{ type: 'remove_item', targetObjectId: 'todo-list', index: 0 }];
     const store = createStackStore(stackWithAddHandler(removeItem));
     const before = store.getState().stack;
     store.getState().activateButton('todo-add');
 
-    expect(store.getState().status).toEqual({
-      text: 'Skipped action 1 (remove_item): this action type is not supported.',
-      seq: 1,
-    });
     expect(store.getState().stack).toEqual(before);
+    expect(store.getState().status).toBeNull();
+    expect(store.getState().statusSeq).toBe(0);
     expect(store.getState().currentCardId).toBe('todo');
-    expect(executeSpy).toHaveBeenCalledTimes(1);
-    expect(executeSpy.mock.results[0]?.value.effects).toEqual([]);
   });
 
-  it('skips only the new Action and keeps the rest of the Handler working', () => {
+  it('works inside a longer Handler: the item is removed and "Done." is shown', () => {
     const onClick: Handler = [
       { type: 'append_item', targetObjectId: 'todo-list', fromObjectId: 'todo-input' },
       { type: 'remove_item', targetObjectId: 'todo-list', index: 0 },
@@ -485,15 +494,127 @@ describe('Actions that are validated but not executable in this release', () => 
       { type: 'go_to_card', cardId: 'about' },
     ];
     const store = createStackStore(stackWithAddHandler(onClick));
-    store.getState().typeInField('todo-input', 'kept');
+    store.getState().typeInField('todo-input', 'gone');
     store.getState().activateButton('todo-add');
 
-    expect(items(store)).toEqual(['kept']);
+    expect(items(store)).toEqual([]);
+    expect(store.getState().currentCardId).toBe('about');
+    expect(store.getState().status?.text).toBe('Done.');
+    expect(executeSpy.mock.results.at(-1)?.value.effects).toEqual([]);
+  });
+});
+
+describe('Actions that need the outside world', () => {
+  /** Demo stack with an ai-field on the to-do card and the Add button running `onClick`. */
+  function stackWithEffectHandler(onClick: Handler): Stack {
+    const stack = stackWithAddHandler(onClick);
+    return {
+      ...stack,
+      cards: stack.cards.map((card) =>
+        card.id === 'todo'
+          ? {
+              ...card,
+              objects: [
+                ...card.objects,
+                {
+                  id: 'todo-ai',
+                  type: 'ai-field' as const,
+                  name: 'Summary',
+                  x: 16,
+                  y: 300,
+                  width: 480,
+                  height: 32,
+                  prompt: 'Summarize.',
+                  inputObjectIds: ['todo-list'],
+                  value: '',
+                },
+              ],
+            }
+          : card,
+      ),
+    };
+  }
+
+  const cases: readonly {
+    readonly kind: string;
+    readonly label: string;
+    readonly action: Handler[number];
+  }[] = [
+    {
+      kind: 'run_ai_field',
+      label: 'AI fields',
+      action: { type: 'run_ai_field', targetObjectId: 'todo-ai' },
+    },
+    {
+      kind: 'fetch_news',
+      label: 'News',
+      action: { type: 'fetch_news', targetObjectId: 'todo-list', topics: ['tech'] },
+    },
+    {
+      kind: 'transcribe_audio',
+      label: 'Voice transcription',
+      action: { type: 'transcribe_audio', targetObjectId: 'todo-input' },
+    },
+    {
+      kind: 'schedule_notification',
+      label: 'Reminders',
+      action: { type: 'schedule_notification', message: 'Ping', at: '2026-12-01T09:00:00Z' },
+    },
+  ];
+
+  for (const { kind, label, action } of cases) {
+    it(`shows a later-release message for a ${kind} Button and leaves the stack unchanged`, () => {
+      const stack = stackWithEffectHandler([action]);
+      const store = createStackStore(stack);
+      store.getState().activateButton('todo-add');
+
+      expect(store.getState().status).toEqual({
+        text: `Skipped action 1 (${kind}): ${label} arrives in a later release.`,
+        seq: 1,
+      });
+      expect(store.getState().stack).toEqual(stack);
+      expect(store.getState().currentCardId).toBe('todo');
+      const effects = executeSpy.mock.results[0]?.value.effects;
+      expect(effects).toHaveLength(1);
+      expect(effects[0]).toMatchObject({ kind, actionIndex: 0 });
+    });
+  }
+
+  it('appends effect messages after the executor messages, with the Action position', () => {
+    const onClick: Handler = [
+      { type: 'show_message', text: 'Working.' },
+      { type: 'fetch_news', targetObjectId: 'todo-list', topics: ['tech'] },
+      { type: 'show_message', text: 'Still working.' },
+      { type: 'transcribe_audio', targetObjectId: 'todo-input' },
+    ];
+    const store = createStackStore(stackWithEffectHandler(onClick));
+    store.getState().activateButton('todo-add');
+
+    expect(store.getState().status?.text).toBe(
+      'Working. Still working. ' +
+        'Skipped action 2 (fetch_news): News arrives in a later release. ' +
+        'Skipped action 4 (transcribe_audio): Voice transcription arrives in a later release.',
+    );
+    const effects = executeSpy.mock.results[0]?.value.effects;
+    expect(effects.map((effect: { kind: string }) => effect.kind)).toEqual([
+      'fetch_news',
+      'transcribe_audio',
+    ]);
+    expect(effects.map((effect: { actionIndex: number }) => effect.actionIndex)).toEqual([1, 3]);
+  });
+
+  it('keeps an effect message when go_to_card follows it', () => {
+    const onClick: Handler = [
+      { type: 'run_ai_field', targetObjectId: 'todo-ai' },
+      { type: 'go_to_card', cardId: 'about' },
+    ];
+    const store = createStackStore(stackWithEffectHandler(onClick));
+    store.getState().activateButton('todo-add');
+
     expect(store.getState().currentCardId).toBe('about');
     expect(store.getState().status?.text).toBe(
-      'Skipped action 2 (remove_item): this action type is not supported. Done.',
+      'Skipped action 1 (run_ai_field): AI fields arrives in a later release.',
     );
-    expect(executeSpy.mock.results.at(-1)?.value.effects).toEqual([]);
   });
 });
 

@@ -531,11 +531,12 @@ function arbWithInputIds(objects: readonly StackObject[]): fc.Arbitrary<StackObj
 
 /**
  * Which Action types `arbHandlerFor` may produce.
- * - `'executable'`: the four types the executor runs (`go_to_card`, `show_message`,
- *   `set_value`, `append_item`). The engine property tests use this mode.
- * - `'all'`: all nine types. The five that are only validated (`remove_item`, `run_ai_field`,
- *   `fetch_news`, `transcribe_audio`, `schedule_notification`) are skipped by the executor,
- *   and `set_value` and `append_item` may also name an AI Field.
+ * - `'executable'`: the four state-only types (`go_to_card`, `show_message`, `set_value`,
+ *   `append_item`). Handlers of this mode never produce effects, so `effects` stays `[]`.
+ *   The engine property tests use this mode.
+ * - `'all'`: all nine types. `remove_item` changes a List, and `run_ai_field`, `fetch_news`,
+ *   `transcribe_audio` and `schedule_notification` make the executor emit an Effect_Request
+ *   and leave the Stack unchanged. `set_value` and `append_item` may also name an AI Field.
  */
 export type HandlerMode = 'executable' | 'all';
 

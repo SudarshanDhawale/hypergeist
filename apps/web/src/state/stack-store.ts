@@ -1,7 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import type { StoreApi } from 'zustand/vanilla';
 import { executeHandler } from '@hypergeist/shared/engine';
-import type { ExecutionResult } from '@hypergeist/shared/engine';
+import type { EffectRequest, ExecutionResult } from '@hypergeist/shared/engine';
 import type { Card, Stack } from '@hypergeist/shared/format';
 
 export type Mode = 'interact' | 'edit';
@@ -46,20 +46,35 @@ function currentCard(state: StackState): Card | undefined {
   return state.stack.cards.find((card) => card.id === state.currentCardId);
 }
 
+/** Fixed label per Effect_Request kind. The effects runtime is a later release. */
+const EFFECT_LABELS: Readonly<Record<EffectRequest['kind'], string>> = {
+  run_ai_field: 'AI fields',
+  fetch_news: 'News',
+  transcribe_audio: 'Voice transcription',
+  schedule_notification: 'Reminders',
+};
+
+/** One status message for an Effect_Request this release cannot carry out. */
+function effectMessage(effect: EffectRequest): string {
+  return `Skipped action ${effect.actionIndex + 1} (${effect.kind}): ${EFFECT_LABELS[effect.kind]} arrives in a later release.`;
+}
+
 /**
  * Applies an Execution_Result to the state: stores the returned Stack, handles
- * `navigateTo`, then the messages. Empty `messages` leave the status unchanged.
+ * `navigateTo`, then the messages (the executor's own, then one per effect, in effect
+ * order). No messages leave the status unchanged.
  */
 function applyResult(state: StackState, result: ExecutionResult): StackState {
   let next: StackState = { ...state, stack: result.stack };
   if (result.navigateTo !== undefined) {
     next = { ...next, currentCardId: result.navigateTo, selectedObjectId: null, status: null };
   }
-  if (result.messages.length === 0) {
+  const messages = [...result.messages, ...result.effects.map(effectMessage)];
+  if (messages.length === 0) {
     return next;
   }
   const seq = next.statusSeq + 1;
-  return { ...next, status: { text: result.messages.join(' '), seq }, statusSeq: seq };
+  return { ...next, status: { text: messages.join(' '), seq }, statusSeq: seq };
 }
 
 /** Creates the one store of the running Stack. It holds no timers; the 4 second expiry lives in the UI. */

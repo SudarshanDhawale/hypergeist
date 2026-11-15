@@ -55,3 +55,5 @@ export type { ParseResult } from './parse.ts';
 export { serializeStack } from './serialize.ts';
 export type { SerializeResult } from './serialize.ts';
 export { validateHandler, validateStack } from './validate.ts';
+export { checkAgainstSchema, createValidationError, toJsonPointer } from './schema-check.ts';
+export type { SchemaCheck, SchemaCheckOptions } from './schema-check.ts';

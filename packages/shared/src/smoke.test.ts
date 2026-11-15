@@ -10,7 +10,16 @@ describe('shared package entry points', () => {
   });
 
   it('exports exactly the public engine API', () => {
-    expect(Object.keys(engine).sort()).toEqual(['executeHandler']);
+    expect(Object.keys(engine).sort()).toEqual([
+      'OPERATIONS',
+      'OPERATION_NAMES',
+      'applyOperation',
+      'buildRenderModel',
+      'createStack',
+      'executeHandler',
+      'operationJsonSchema',
+      'remixStack',
+    ]);
   });
 
   it('exports exactly the public format API', () => {
@@ -48,6 +57,9 @@ describe('shared package entry points', () => {
         'stackJsonSchema',
         'validateHandler',
         'validateStack',
+        'checkAgainstSchema',
+        'createValidationError',
+        'toJsonPointer',
       ].sort(),
     );
   });

@@ -256,7 +256,13 @@ describe('the hint lists of the issue mapper', () => {
 
 describe("the engine's executable subset", () => {
   const EXECUTABLE = ['go_to_card', 'set_value', 'append_item', 'show_message'];
-  const NOT_EXECUTABLE = DOCUMENTED_ACTION_TYPES.filter((type) => !EXECUTABLE.includes(type));
+  const EFFECT_ACTIONS = [
+    'run_ai_field',
+    'fetch_news',
+    'transcribe_audio',
+    'schedule_notification',
+  ];
+  const EFFECT_TYPES = DOCUMENTED_ACTION_TYPES.filter((type) => EFFECT_ACTIONS.includes(type));
 
   const base = { x: 0, y: 0, width: 100, height: 30 };
   const stack: Stack = {
@@ -325,15 +331,33 @@ describe("the engine's executable subset", () => {
     for (const type of EXECUTABLE) expect(ACTION_TYPES as readonly string[]).toContain(type);
   });
 
-  it.each(NOT_EXECUTABLE)('skips the %s Action with a "not supported" message', (type) => {
-    const handler = handlers[type as (typeof ACTION_TYPES)[number]];
-    const result = executeHandler(stack, handler);
+  it.each(ACTION_TYPES)('runs the %s Action without a "not supported" message', (type) => {
+    const result = executeHandler(stack, handlers[type]);
+    expect(result.messages.some((message) => message.includes('not supported'))).toBe(false);
+    expect(result.messages.some((message) => message.startsWith('Skipped action'))).toBe(false);
+    expect(validateStack(result.stack).valid).toBe(true);
+  });
+
+  it.each(EFFECT_TYPES)('emits an Effect_Request for the %s Action', (type) => {
+    const result = executeHandler(stack, handlers[type as (typeof ACTION_TYPES)[number]]);
     expect(result.stack).toEqual(stack);
-    expect(result.effects).toEqual([]);
-    expect(result.navigateTo).toBeUndefined();
-    expect(result.messages).toHaveLength(1);
-    expect(result.messages[0]).toContain(`(${type})`);
-    expect(result.messages[0]).toContain('not supported');
+    expect(result.effects).toHaveLength(1);
+    expect(result.effects[0]?.kind).toBe(type);
+  });
+
+  it('removes an item with remove_item', () => {
+    const withItems: Stack = {
+      ...stack,
+      cards: stack.cards.map((card) => ({
+        ...card,
+        objects: card.objects.map((object) =>
+          object.type === 'list' ? { ...object, items: ['a', 'b'] } : object,
+        ),
+      })),
+    };
+    const result = executeHandler(withItems, handlers.remove_item);
+    const list = result.stack.cards[0]?.objects.find((object) => object.id === 'l1');
+    expect(list?.type === 'list' ? list.items : undefined).toEqual(['b']);
   });
 
   it.each(EXECUTABLE)('runs the %s Action', (type) => {
