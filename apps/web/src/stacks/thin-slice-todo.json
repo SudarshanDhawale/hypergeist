@@ -97,7 +97,7 @@
           "y": 16,
           "width": 480,
           "height": 240,
-          "value": "Changes are not saved. Reloading the page resets this stack.\n\nAI arrives in a later release. Nothing here talks to an AI yet.\n\nAdding with an empty field appends an empty item, because the stack format has no conditions.",
+          "value": "Stacks are stored in this browser only. Clearing the browser's site data deletes them. Export a stack to keep a copy.\n\nChanges save about a second after you stop. The \"Saved\" label shows when it is safe to close the tab. Closing the tab right after a change can lose the last second, because a browser may end the page before the write finishes.\n\nIf two tabs have the same stack open, they overwrite each other. The last save wins.\n\nThe open card and the mode are not saved. A reload returns to the start card in Interact mode.\n\nAI arrives in a later release. Nothing here talks to an AI yet.\n\nAdding with an empty field appends an empty item, because the stack format has no conditions.",
           "placeholder": "",
           "multiline": true,
           "readOnly": true

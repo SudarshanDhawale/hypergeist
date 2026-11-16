@@ -35,6 +35,8 @@ type Target = {
   readonly owner: Owner;
   /** `package` for `@hypergeist/<name>[/...]`, `relative` for a path resolved from the importer. */
   readonly via: 'package' | 'relative';
+  /** Repo-relative path of a `relative` target. Absent for a `package` target. */
+  readonly path?: string;
 };
 
 const OWNER_DIRS: readonly (readonly [Owner, string])[] = [
@@ -94,7 +96,7 @@ function resolveTarget(importerPath: string, specifier: string): Target | undefi
       return undefined;
     }
     const owner = ownerOfPath(resolved);
-    return owner === undefined ? undefined : { owner, via: 'relative' };
+    return owner === undefined ? undefined : { owner, via: 'relative', path: resolved };
   }
 
   const parts = specifier.split('/');
@@ -108,8 +110,17 @@ function resolveTarget(importerPath: string, specifier: string): Target | undefi
   return undefined;
 }
 
+/** The shared test helpers (arbitraries, seed handling). Only test files of the apps may import them. */
+const SHARED_TEST_SUPPORT_DIR = 'packages/shared/test-support/';
+
+/** A test file is named `*.test.ts` or `*.test.tsx` (this includes `*.property.test.ts`). */
+function isTestFile(path: string): boolean {
+  return /\.test\.tsx?$/.test(path);
+}
+
 function classify(
   importer: Owner,
+  importerPath: string,
   target: Target,
   specifier: string,
 ): { readonly rule: RuleId; readonly message: string } | undefined {
@@ -126,6 +137,15 @@ function classify(
   if (target.owner === 'shared') {
     const allowed = target.via === 'package' && SHARED_PUBLIC_ENTRY_POINTS.includes(specifier);
     if (allowed) return undefined;
+    // Exception: a test file of an app may import the shared test helpers by relative path.
+    if (
+      target.via === 'relative' &&
+      target.path !== undefined &&
+      target.path.startsWith(SHARED_TEST_SUPPORT_DIR) &&
+      isTestFile(importerPath)
+    ) {
+      return undefined;
+    }
     return {
       rule: 'shared-internal-import',
       message: `apps/${importer} must import the shared package only through ${SHARED_PUBLIC_ENTRY_POINTS.join(', ')}`,
@@ -151,7 +171,7 @@ export function checkFile(file: SourceFile): readonly Violation[] {
   for (const { specifier, line } of extractSpecifiers(file.text)) {
     const target = resolveTarget(file.path, specifier);
     if (target === undefined) continue;
-    const result = classify(importer, target, specifier);
+    const result = classify(importer, file.path, target, specifier);
     if (result === undefined) continue;
     violations.push({
       rule: result.rule,

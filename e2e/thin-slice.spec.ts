@@ -163,8 +163,9 @@ test('Alt+M toggles Edit mode, selection shows handles and properties, Escape cl
   await expect(win.getByRole('list', { name: 'To-do items' }).getByRole('listitem')).toHaveCount(0);
 });
 
-test('a reload resets the stack and shows the not-saved notice', async ({ page }) => {
+test('a reload keeps the added item', async ({ page }) => {
   await page.goto('/');
+  await waitForAppReady(page);
   const win = stackWindow(page);
   const list = win.getByRole('list', { name: 'To-do items' });
 
@@ -172,14 +173,20 @@ test('a reload resets the stack and shows the not-saved notice', async ({ page }
   await win.getByRole('button', { name: 'Add item', exact: true }).click();
   await expect(list.getByRole('listitem')).toHaveText(['Walk the dog']);
 
+  // The save indicator is a live region without a role. It reads "Saving" right after the
+  // change and "Saved" once the write finished, which is when a reload is safe.
+  await expect(win.getByText('Saved', { exact: true })).toBeVisible();
+
   await page.reload();
+  await waitForAppReady(page);
 
   const reloaded = stackWindow(page);
-  await expect(reloaded.getByRole('list', { name: 'To-do items' })).toBeVisible();
   await expect(
     reloaded.getByRole('list', { name: 'To-do items' }).getByRole('listitem'),
-  ).toHaveCount(0);
-  await expect(reloaded.getByRole('note')).toHaveText(
-    'Changes are not saved. Reloading the page resets this stack.',
-  );
+  ).toHaveText(['Walk the dog']);
+  await expect(reloaded.getByText('Saved', { exact: true })).toBeVisible();
+
+  // The old thin-slice notice is gone, and the Memory_Mode banner (role "note") is not shown.
+  await expect(reloaded.getByRole('note')).toHaveCount(0);
+  await expect(page.getByText('Changes are not saved')).toHaveCount(0);
 });

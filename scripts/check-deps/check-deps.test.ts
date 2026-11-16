@@ -116,6 +116,52 @@ describe('check-deps import forms', () => {
   });
 });
 
+describe('check-deps test-support exception', () => {
+  const helper =
+    "import { arbStack } from '../../../../packages/shared/test-support/arbitraries.ts';\n";
+
+  it('lets an app test file import the shared test helpers', () => {
+    for (const path of [
+      'apps/web/src/persistence/x.property.test.ts',
+      'apps/web/src/components/X.test.tsx',
+      'apps/worker/src/x.test.ts',
+    ]) {
+      const depth = path.split('/').length - 1;
+      const text = `import { arbStack } from '${'../'.repeat(depth)}packages/shared/test-support/arbitraries.ts';\n`;
+      expect(checkFile({ path, text })).toEqual([]);
+    }
+  });
+
+  it('still rejects the shared test helpers in non-test app code', () => {
+    const violations = checkFile({ path: 'apps/web/src/persistence/x.ts', text: helper });
+    expect(summarize(violations).map((v) => v.rule)).toEqual(['shared-internal-import']);
+  });
+
+  it('still rejects other shared internals in an app test file', () => {
+    const violations = checkFile({
+      path: 'apps/web/src/persistence/x.test.ts',
+      text: "import { thing } from '../../../../packages/shared/src/engine/ids.ts';\n",
+    });
+    expect(summarize(violations).map((v) => v.rule)).toEqual(['shared-internal-import']);
+  });
+
+  it('still rejects a path that only starts like the test-support folder', () => {
+    const violations = checkFile({
+      path: 'apps/web/src/persistence/x.test.ts',
+      text: "import { a } from '../../../../packages/shared/test-support-other/a.ts';\n",
+    });
+    expect(summarize(violations).map((v) => v.rule)).toEqual(['shared-internal-import']);
+  });
+
+  it('does not let shared code import app code through the exception', () => {
+    const violations = checkFile({
+      path: 'packages/shared/src/x.test.ts',
+      text: "import { a } from '../../../apps/web/src/a.ts';\n",
+    });
+    expect(summarize(violations).map((v) => v.rule)).toEqual(['shared-imports-app']);
+  });
+});
+
 describe('collectFiles walker', () => {
   let tempRoot: string | undefined;
 

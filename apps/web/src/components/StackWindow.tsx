@@ -3,7 +3,9 @@ import type { JSX } from 'react';
 import { useStackStore } from '../state/StackStoreContext.tsx';
 import { Canvas } from './Canvas.tsx';
 import { LinkBar } from './LinkBar.tsx';
+import { MemoryModeBanner } from './MemoryModeBanner.tsx';
 import { PropertyReadout } from './PropertyReadout.tsx';
+import { SaveIndicator } from './SaveIndicator.tsx';
 import { StatusBar } from './StatusBar.tsx';
 
 /**
@@ -22,9 +24,8 @@ export function StackWindow(): JSX.Element {
       </div>
       <Canvas />
       <LinkBar />
-      <p className="notice" role="note">
-        Changes are not saved. Reloading the page resets this stack.
-      </p>
+      <MemoryModeBanner />
+      <SaveIndicator />
       <PropertyReadout />
       <StatusBar />
     </section>

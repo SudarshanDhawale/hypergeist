@@ -37,6 +37,12 @@ export type StackActions = {
   followLink(id: string): void;
   /** Clears the status only when `seq` is still the current one. */
   expireStatus(seq: number): void;
+  /**
+   * Swaps in another Stack (opened, imported or reloaded from storage) and starts it fresh:
+   * start Card, Interact mode, no Selection, no status. `statusSeq` keeps growing, so a timer of
+   * an earlier message cannot clear a later one.
+   */
+  replaceStack(stack: Stack): void;
 };
 
 export type StackStore = StackState & StackActions;
@@ -139,6 +145,16 @@ export function createStackStore(stack: Stack): StackStoreApi {
     expireStatus(seq) {
       if (get().status?.seq !== seq) return;
       set({ status: null });
+    },
+
+    replaceStack(stack) {
+      set({
+        stack,
+        currentCardId: stack.startCardId,
+        mode: 'interact',
+        selectedObjectId: null,
+        status: null,
+      });
     },
   }));
 }

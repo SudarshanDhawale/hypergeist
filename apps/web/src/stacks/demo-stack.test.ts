@@ -85,7 +85,14 @@ describe('Demo_Stack', () => {
     expect(limits.readOnly).toBe(true);
     expect(limits.multiline).toBe(true);
     const text = limits.value.toLowerCase();
-    expect(text).toContain('not saved');
+    expect(text).not.toContain('reloading the page resets');
+    expect(text).toContain('stored in this browser only');
+    expect(text).toContain("clearing the browser's site data deletes them");
+    expect(text).toContain('overwrite each other');
+    expect(text).toContain('the last save wins');
+    expect(text).toContain('lose the last second');
+    expect(text).toContain('"saved" label');
+    expect(text).toContain('the open card and the mode are not saved');
     expect(text).toContain('ai arrives in a later release');
     expect(text).toContain('empty field appends an empty item');
   });

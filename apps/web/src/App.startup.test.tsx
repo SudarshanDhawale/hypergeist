@@ -189,16 +189,27 @@ describe('App startup with the Demo_Stack', () => {
     expect(within(ghost).getByText('AI arrives in a later release')).toBeTruthy();
   });
 
-  it('shows the not-saved notice on all three Cards', () => {
-    render(<App />);
-    const notice = 'Changes are not saved. Reloading the page resets this stack.';
-    expect(screen.getByRole('note').textContent).toBe(notice);
+  it('shows no not-saved notice on the three Cards, and the Limits card states the real limits', () => {
+    const { container } = render(<App />);
+    const expectNoNotice = (): void => {
+      expect(screen.queryByRole('note')).toBeNull();
+      expect(container.textContent).not.toContain('Changes are not saved');
+      expect(container.textContent).not.toContain('Reloading the page resets');
+    };
+    expectNoNotice();
     fireEvent.click(screen.getByRole('button', { name: 'About this stack' }));
     expect(cardPosition()).toBe('Card 2 of 3');
-    expect(screen.getByRole('note').textContent).toBe(notice);
+    expectNoNotice();
     fireEvent.click(screen.getByRole('button', { name: 'Limits' }));
     expect(cardPosition()).toBe('Card 3 of 3');
-    expect(screen.getByRole('note').textContent).toBe(notice);
+    expectNoNotice();
+    const limits = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Limits' }).value;
+    expect(limits).toContain('stored in this browser only');
+    expect(limits).toContain("Clearing the browser's site data deletes them");
+    expect(limits).toContain('overwrite each other');
+    expect(limits).toContain('The last save wins');
+    expect(limits).toContain('can lose the last second');
+    expect(limits).toContain('The open card and the mode are not saved');
   });
 
   it('orders Tab stops as Mode_Control, Objects, then Links on each Card', () => {

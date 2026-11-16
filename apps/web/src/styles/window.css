@@ -1,15 +1,20 @@
 /*
- * Desktop layout, menu bar, window chrome, status bar, notice, readout.
+ * Desktop layout, menu bar, window chrome, status bar, memory banner, save indicator, readout.
  *
  * Markup contract (see the component tree in design.md):
  *   .desktop > header.menu-bar, main.desktop-main, aside.rail
  *   .menu-bar > .spirit-glyph, h1, .mode-control
  *   section.window.stack-window, direct children:
- *     .title-bar, .canvas-frame, nav.link-bar, p.notice,
+ *     .title-bar, .canvas-frame, nav.link-bar, div.memory-banner,
+ *     div.save-indicator-row,
  *     section.property-readout (Edit mode only), footer.status-bar
  *   .title-bar > h2 (the window title)
  *   .status-bar > .status-card, .status-mode, .status-hint
  *   .load-error (the startup error screen)
+ *
+ * Dialogs (Stacks window and its confirm dialogs), drawn in a portal on document.body:
+ *   .dialog-scrim > section.window.dialog[role=dialog]
+ *   .dialog > .title-bar > h2, .dialog-body, .dialog-actions
  */
 
 .desktop {
@@ -80,7 +85,7 @@
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
 }
 
 .title-bar {
@@ -110,19 +115,24 @@
   grid-row: 3;
 }
 
-.stack-window > .notice {
+.stack-window > .memory-banner {
   grid-column: 1;
   grid-row: 4;
 }
 
+.stack-window > .save-indicator-row {
+  grid-column: 1;
+  grid-row: 5;
+}
+
 .stack-window > .property-readout {
   grid-column: 2;
-  grid-row: 2 / 5;
+  grid-row: 2 / 6;
 }
 
 .stack-window > .status-bar {
   grid-column: 1 / -1;
-  grid-row: 5;
+  grid-row: 6;
 }
 
 .link-bar {
@@ -133,10 +143,19 @@
   border-top: var(--border) solid var(--ink);
 }
 
-.notice {
+.memory-banner,
+.save-indicator-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-1) var(--space-3);
   font-size: var(--fs-12);
   border-top: var(--border) dotted var(--ink);
+}
+
+.memory-banner {
+  border-top: var(--border) solid var(--ink);
 }
 
 /* Property readout: labelled read-only region, shown in Edit mode only. */
@@ -205,4 +224,167 @@
 
 .load-error code {
   font-family: var(--font-mono);
+}
+
+/*
+ * Dialogs. The scrim is a dither tile, never a gray overlay. A nested dialog (a confirm over the
+ * Stacks window) has no fill, so the window below stays readable; its hard shadow sets it apart.
+ */
+.dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--paper) var(--dither-25);
+}
+
+.dialog-scrim-nested {
+  z-index: 20;
+  background: none;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The window takes focus when it opens; the controls show the focus ring, the window does not. */
+.dialog:focus-visible {
+  outline: none;
+}
+
+.stacks-window {
+  width: calc(40 * var(--space-4));
+}
+
+.dialog-small {
+  width: calc(28 * var(--space-4));
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  padding: var(--space-3);
+  overflow: auto;
+  scrollbar-color: var(--ink) var(--paper);
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--border) solid var(--ink);
+}
+
+.dialog-message {
+  overflow-wrap: anywhere;
+}
+
+/* Stacks window. */
+.stacks-help,
+.stacks-meta {
+  font-size: var(--fs-12);
+}
+
+.stacks-notices:empty {
+  display: none;
+}
+
+/* A note is a boxed line. An error has a double border, so color is never the only signal. */
+.stacks-note {
+  padding: var(--space-1) var(--space-2);
+  border: var(--border) solid var(--ink);
+}
+
+.stacks-note-error {
+  border-style: double;
+  border-width: calc(2 * var(--border));
+}
+
+.stacks-errors {
+  padding-left: var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+.stacks-errors code {
+  font-family: var(--font-mono);
+}
+
+.stacks-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--border) solid var(--ink);
+}
+
+.stacks-row,
+.stacks-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.stacks-row + .stacks-row {
+  border-top: var(--border) dotted var(--ink);
+}
+
+.stacks-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.stacks-badge {
+  padding: 0 var(--space-2);
+  font-size: var(--fs-12);
+  border: var(--border) solid var(--ink);
+}
+
+/* The open stack is marked by an inverted badge. */
+.stacks-badge-open {
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.stacks-actions,
+.stacks-trash-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stacks-trash-head {
+  justify-content: space-between;
+}
+
+/* Start-up text, shown on paper while the stacks open. */
+.app-loading {
+  padding: var(--space-4);
+}
+
+/* A message that is not part of a stack window, for example "the file could not be exported". */
+.app-notice {
+  position: fixed;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  left: var(--space-2);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--paper);
 }

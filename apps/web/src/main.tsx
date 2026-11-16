@@ -7,12 +7,11 @@ import './styles/controls.css';
 import './styles/canvas.css';
 import './styles/ghost.css';
 import { createRoot } from 'react-dom/client';
-import { App } from './App.tsx';
-import demoStackText from './stacks/thin-slice-todo.json?raw';
+import { AppRoot } from './components/AppRoot.tsx';
 
 const container = document.getElementById('root');
 if (container === null) {
   throw new Error('Missing #root element in index.html');
 }
 
-createRoot(container).render(<App stackText={demoStackText} />);
+createRoot(container).render(<AppRoot />);

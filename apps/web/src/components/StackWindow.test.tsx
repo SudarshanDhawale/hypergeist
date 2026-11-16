@@ -4,6 +4,8 @@ import * as engine from '@hypergeist/shared/engine';
 import type { Stack } from '@hypergeist/shared/format';
 import demoText from '../stacks/thin-slice-todo.json?raw';
 import { loadStack } from '../stacks/load-stack.ts';
+import { createSaveStateStore } from '../state/save-state-store.ts';
+import { SaveStateProvider } from '../state/SaveStateContext.tsx';
 import { StackStoreProvider, useStackStoreApi } from '../state/StackStoreContext.tsx';
 import { StackWindow } from './StackWindow.tsx';
 
@@ -57,6 +59,17 @@ function renderWindow(stack: Stack = demoStack()) {
   );
   if (api === undefined) throw new Error('store missing');
   return { ...view, store: api };
+}
+
+/** The window inside a SaveStateProvider, as `AppRoot` will render it. */
+function renderWithSaveState(memoryMode: boolean) {
+  return render(
+    <SaveStateProvider store={createSaveStateStore()} memoryMode={memoryMode} onExport={vi.fn()}>
+      <StackStoreProvider stack={demoStack()}>
+        <StackWindow />
+      </StackStoreProvider>
+    </SaveStateProvider>,
+  );
 }
 
 type Rendered = ReturnType<typeof renderWindow>;
@@ -213,11 +226,32 @@ describe('StackWindow in Interact mode', () => {
     expect(screen.queryByLabelText('Properties')).toBeNull();
   });
 
-  it('shows the not-saved notice', () => {
-    renderWindow();
-    expect(screen.getByRole('note').textContent).toBe(
-      'Changes are not saved. Reloading the page resets this stack.',
+  it('no longer shows the old not-saved notice, and shows no save UI without a provider', () => {
+    const { container } = renderWindow();
+    expect(screen.queryByRole('note')).toBeNull();
+    expect(container.textContent).not.toContain('Changes are not saved');
+    expect(container.querySelector('.save-indicator')).toBeNull();
+    expect(container.querySelector('.memory-banner')).toBeNull();
+  });
+
+  it('shows the save indicator when a SaveStateProvider is present', () => {
+    const { container } = renderWithSaveState(false);
+    expect(container.querySelector('.save-indicator')?.textContent).toBe('Saved');
+    expect(screen.queryByRole('note')).toBeNull();
+    // The Hint_Line stays the only status in the window.
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
+
+  it('shows the Memory_Mode banner before the save indicator', () => {
+    const { container } = renderWithSaveState(true);
+    expect(screen.getByRole('note').textContent).toContain(
+      'Changes are lost when you close this page. Export before leaving.',
     );
+    const classes = Array.from(container.querySelector('.stack-window')?.children ?? []).map(
+      (child) => child.className,
+    );
+    expect(classes.indexOf('memory-banner')).toBeGreaterThan(classes.indexOf('link-bar'));
+    expect(classes.indexOf('save-indicator-row')).toBe(classes.indexOf('memory-banner') + 1);
   });
 });
 

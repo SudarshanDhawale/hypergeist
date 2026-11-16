@@ -680,3 +680,70 @@ describe('input immutability', () => {
     expect(store.getState().stack).toBe(input);
   });
 });
+
+describe('replaceStack', () => {
+  it('shows the new stack from its start card, in Interact mode, with no selection and no status', () => {
+    const store = demoStore();
+    store.getState().followLink('todo-link-about');
+    store.getState().setMode('edit');
+    store.getState().selectObject('about-text');
+    expect(store.getState().currentCardId).toBe('about');
+    expect(store.getState().selectedObjectId).toBe('about-text');
+
+    const next: Stack = { ...demoStack(), id: 'other', name: 'Other', startCardId: 'about' };
+    store.getState().replaceStack(next);
+
+    const state = store.getState();
+    expect(state.stack).toBe(next);
+    expect(state.currentCardId).toBe('about');
+    expect(state.mode).toBe('interact');
+    expect(state.selectedObjectId).toBeNull();
+    expect(state.status).toBeNull();
+  });
+
+  it('clears a status message and does not reset statusSeq', () => {
+    const store = demoStore();
+    store.getState().typeInField('todo-input', 'Milk');
+    store.getState().activateButton('todo-add');
+    expect(store.getState().status).not.toBeNull();
+    const seq = store.getState().statusSeq;
+
+    store.getState().replaceStack(demoStack());
+    expect(store.getState().status).toBeNull();
+    expect(store.getState().statusSeq).toBe(seq);
+
+    // The next message gets a new seq, so the timer of the old message cannot clear it.
+    store.getState().typeInField('todo-input', 'Eggs');
+    store.getState().activateButton('todo-add');
+    expect(store.getState().status?.seq).toBe(seq + 1);
+    store.getState().expireStatus(seq);
+    expect(store.getState().status?.seq).toBe(seq + 1);
+  });
+
+  it('does not mutate the stack it receives, and edits afterwards return a new stack', () => {
+    const store = demoStore();
+    const input = deepFreeze({ ...demoStack(), id: 'other' });
+    const snapshot = JSON.stringify(input);
+
+    store.getState().replaceStack(input);
+    expect(store.getState().stack).toBe(input);
+    store.getState().typeInField('todo-input', 'Milk');
+    store.getState().activateButton('todo-add');
+
+    expect(JSON.stringify(input)).toBe(snapshot);
+    expect(store.getState().stack).not.toBe(input);
+    expect(store.getState().stack.id).toBe('other');
+    expect(items(store)).toEqual(['Milk']);
+  });
+
+  it('notifies subscribers once with the new stack', () => {
+    const store = demoStore();
+    const seen: Stack[] = [];
+    store.subscribe((state, previous) => {
+      if (state.stack !== previous.stack) seen.push(state.stack);
+    });
+    const next = { ...demoStack(), id: 'other' };
+    store.getState().replaceStack(next);
+    expect(seen).toEqual([next]);
+  });
+});
