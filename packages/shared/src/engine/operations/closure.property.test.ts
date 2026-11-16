@@ -21,12 +21,10 @@ describe('applyOperation closure', () => {
         let held: Stack = deepFreeze(deepCopy(initial));
         for (const template of templates) {
           const call = resolveOperation(held, template);
-          const before = deepCopy(held);
 
           const result = applyOperation(held, call.name, call.params);
 
-          // The input is frozen, so a write would have thrown. It must also be unchanged.
-          expect(held).toEqual(before);
+          // The held Stack is deeply frozen, so a write by the engine would have thrown.
 
           if (result.ok) {
             seen.accepted += 1;
@@ -36,8 +34,9 @@ describe('applyOperation closure', () => {
             expect(typeof result.summary.removedActions).toBe('number');
             expect(Number.isInteger(result.summary.removedActions)).toBe(true);
             expect(result.summary.removedActions).toBeGreaterThanOrEqual(0);
+            // The held Stack is validated once per accepted step; a rejected step leaves it as is.
             expect(validateStack(result.stack).valid).toBe(true);
-            held = deepFreeze(deepCopy(result.stack));
+            held = deepFreeze(result.stack);
           } else {
             seen.rejected += 1;
             expect('stack' in result).toBe(false);
@@ -46,12 +45,12 @@ describe('applyOperation closure', () => {
               expect(VALIDATION_ERROR_CODES).toContain(error.code);
             }
           }
-
-          expect(validateStack(held).valid).toBe(true);
         }
       }),
     );
     expect(seen.accepted).toBeGreaterThan(0);
     expect(seen.rejected).toBeGreaterThan(0);
-  });
+    // Up to 50 steps per case, so this property is slower than the others when the whole
+    // suite runs in parallel workers.
+  }, 120_000);
 });

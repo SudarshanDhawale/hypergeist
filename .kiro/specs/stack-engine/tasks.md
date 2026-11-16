@@ -69,7 +69,7 @@ Read these before every task. They override anything else in this file.
     - Examples: nested frozen, a write to a frozen object throws in strict mode, `deepCopy` is deeply equal and unfrozen
     - _Requirements: 1.3, 10.2_
 
-- [ ] 3. Checkpoint - Ensure all tests pass
+- [x] 3. Checkpoint - Ensure all tests pass
   - Run `pnpm --filter @hypergeist/shared test`, `pnpm --filter @hypergeist/shared typecheck`, `pnpm --filter @hypergeist/web typecheck`, and `pnpm exec vitest run apps/web scripts`. Only the `smoke.test.ts` format pin changed so far. Ensure all tests pass, ask the user if questions arise.
 
 - [x] 4. Step 3: Executor runs all nine Actions, and the web store reports effects
@@ -107,7 +107,7 @@ Read these before every task. They override anything else in this file.
     - Inputs: `arbStack`, a List in it, and an integer `index` of 0 or more (below, at, and above the item count). Assert exact removal with order kept below the count, and an unchanged List with no message otherwise
     - **Validates: Requirements 5.6, 5.7**
 
-- [ ] 5. Checkpoint - Ensure all tests pass
+- [x] 5. Checkpoint - Ensure all tests pass
   - Run `pnpm --filter @hypergeist/shared test`, both typechecks, and `pnpm exec vitest run apps/web scripts`. Steps 1 to 3 are now complete, including the web store change. Ensure all tests pass, ask the user if questions arise.
 
 - [x] 6. Step 4: Render model
@@ -157,10 +157,10 @@ Read these before every task. They override anything else in this file.
     - Update the engine export list in `packages/shared/src/smoke.test.ts` (add `createStack`, `remixStack`)
     - _Requirements: 7.1, 8.1, 10.1_
 
-- [ ] 8. Checkpoint - Ensure all tests pass
+- [x] 8. Checkpoint - Ensure all tests pass
   - Run `pnpm --filter @hypergeist/shared test`, both typechecks, and `pnpm exec vitest run apps/web scripts`. Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Step 6: Operations
+- [x] 9. Step 6: Operations
   - [x] 9.1 Create `packages/shared/src/engine/operations/object-defaults.ts` and `object-defaults.test.ts`
     - `OBJECT_DEFAULTS` table of the design (all types `name: ""`; button `onClick: []`; field `value: ""`, `placeholder: ""`, `multiline: false`, `readOnly: false`; image `alt: ""`; list `items: []`, `ordered: false`; ai-field `value: ""`, `inputObjectIds: []`)
     - Consistency test: for each Object type, derive the full property list from the Zod `.shape` and assert `defaults ∪ required = all properties`, where required is `id`, `type`, `x`, `y`, `width`, `height` plus `label` (button), `src` (image), `prompt` (ai-field). A property added to the format later must fail this test
@@ -217,15 +217,15 @@ Read these before every task. They override anything else in this file.
     - `arbOperationTemplate`, `resolveOperation(stack, template)` returning `{ name, params, expectedCode? }`, and `arbOperationSequence` (0 to 50 templates). A template holds choices as fractions in `[0, 1)` plus a `fault` tag (`none`, `unknown-entity`, `duplicate-id`, `bad-id-pattern`, `index-out-of-range`, `missing-required`, `wrong-type`, `unknown-property`, `over-limit`, `wrong-reference-kind`, `bad-handler`). `resolveOperation` builds the parameters against the current Stack, so ids stay real after earlier steps changed it
     - Coverage test with a fixed seed over 200 sequences: every Operation name occurs, both accepted and rejected results occur, a sequence of length 0 and one of length 50 occur
     - _Requirements: 11.2_
-  - [ ] 9.15 Write property test for operation closure in `packages/shared/src/engine/operations/closure.property.test.ts`
+  - [x] 9.15 Write property test for operation closure in `packages/shared/src/engine/operations/closure.property.test.ts`
     - **Property 1: Operations keep the Stack valid**
     - Inputs: `arbStack` and `arbOperationSequence`. After every step, accepted or rejected, the held Stack passes `validateStack`; an accepted step has `ok: true` and a valid Stack
     - **Validates: Requirements 1.1, 11.6**
-  - [ ] 9.16 Write property test for rejected operations in `packages/shared/src/engine/operations/rejected-unchanged.property.test.ts`
+  - [x] 9.16 Write property test for rejected operations in `packages/shared/src/engine/operations/rejected-unchanged.property.test.ts`
     - **Property 2: A rejected Operation changes nothing**
     - Inputs: `arbStack` and operation templates that resolve to rejected calls (and mutated parameters). Assert `ok: false`, at least one error, no `stack` property, error codes in the closed set, non-empty `message`, `expected` and `hint`, `actual` of `null` or at most 200 code points, `path` of `""` or starting with `/` and not with `/stack`, and the deeply frozen input equal to a copy taken before the call
     - **Validates: Requirements 1.2, 1.3, 1.10, 3.13, 4.7, 9.6, 11.7**
-  - [ ] 9.17 Write property test for engine purity in `packages/shared/src/engine/purity.engine.property.test.ts`
+  - [x] 9.17 Write property test for engine purity in `packages/shared/src/engine/purity.engine.property.test.ts`
     - **Property 3: Engine functions are pure and deterministic**
     - Inputs: `arbStack`, `arbHandlerFor(stack, 'all')`, operation templates, Card ids, new Stack ids, and `arbCreateStackParams`. Call `applyOperation`, `executeHandler`, `buildRenderModel`, `remixStack`, `createStack` twice on deeply frozen inputs; results deeply equal and no input modified
     - **Validates: Requirements 1.3, 1.4, 5.15, 6.7, 8.15, 10.2**
@@ -284,38 +284,38 @@ Read these before every task. They override anything else in this file.
     - Inputs: `arbStack`, entity-naming parameters replaced by an unused id or the id of an entity of another kind (Operations and `buildRenderModel`), `set_action` with a Link as owner, and arbitrary non-Operation names. Assert `UNKNOWN_ENTITY` at that pointer, `WRONG_REFERENCE_TYPE` for the `set_action` owner, `INVALID_VALUE` at `/operation`, and the Stack unchanged
     - **Validates: Requirements 1.9, 1.12, 3.10, 4.6, 4.9, 6.4, 9.7**
 
-- [ ] 10. Checkpoint - Ensure all tests pass
+- [x] 10. Checkpoint - Ensure all tests pass
   - Run `pnpm --filter @hypergeist/shared test`, both typechecks, `pnpm exec eslint packages/shared apps/web/src`, and `pnpm exec vitest run apps/web scripts`. Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Step 7: Docs
-  - [ ] 11.1 Update `README.md` (format and engine sections)
+- [x] 11. Step 7: Docs
+  - [x] 11.1 Update `README.md` (format and engine sections)
     - Describe the engine public API from `@hypergeist/shared/engine`: `executeHandler` (all nine Actions, Effect_Requests as data), `applyOperation` and the seven Operations with `OPERATIONS` and `operationJsonSchema`, `buildRenderModel`, `remixStack`, `createStack`, and the `OperationResult` and `Validation_Error` shapes. State the remaining gap honestly: the UI does not call Operations or run effects yet, and the app shows a "later release" message for effect Actions. No claim that anything is shipped that is not
     - _Requirements: 9.4, 10.1_
-  - [ ] 11.2 Update `docs/handoff.md`
+  - [x] 11.2 Update `docs/handoff.md`
     - Record the engine API, the behavior change of `executeHandler` (the five Actions no longer say "not supported"; effects are returned as data), the web store effect message, the open items that were decided (error paths for omitted parameters, `LIMIT_EXCEEDED` for over-long text, `UNKNOWN_PROPERTY` for unknown parameters, summary `removedActions`), and the next steps (UI adoption of `buildRenderModel` and `applyOperation`, the AI orchestrator building its tool registry from `OPERATIONS`, the effects runtime writing results back with `update_object`). Do not state that the e2e check passed
     - _Requirements: 9.4_
-  - [ ] 11.3 Update `.kiro/steering/project-status.md`
+  - [x] 11.3 Update `.kiro/steering/project-status.md`
     - Update "Where we are": `stack-engine` now has requirements, design, tasks and an implemented engine package (pending the Developer's e2e check, task 13), and describe the engine public API in two or three lines. Keep the file short, keep the working agreements section unchanged, and update the "Last updated" date to the date given by the Developer or leave the date line alone if unknown
     - _Requirements: 9.4_
-  - [ ] 11.4 Update `docs/kiro-journal.md`
+  - [x] 11.4 Update `docs/kiro-journal.md`
     - Add a short entry for the `stack-engine` spec: spec-driven workflow, orchestrator mode, property-based tests for closure, atomicity, and schema consistency, and the properties that found real issues if any were recorded during the run (do not invent findings)
     - _Requirements: 11.1_
 
-- [ ] 12. Final verification
-  - [ ] 12.1 Audit the e2e specs for changed behavior
+- [x] 12. Final verification
+  - [x] 12.1 Audit the e2e specs for changed behavior
     - Read `e2e/smoke.spec.ts` and `e2e/thin-slice.spec.ts`. Check for any dependence on "not supported" text, on `remove_item` being skipped, or on the status text of a Button with an effect Action. Change a spec only if it depends on changed behavior (writing only; do NOT run Playwright). Report "no change needed" if nothing depends on it
     - _Requirements: 5.10, 5.17_
-  - [ ] 12.2 Run the full verification suite
+  - [x] 12.2 Run the full verification suite
     - From the repo root, in this order, and record the result of each: `pnpm format` then `pnpm format:check`; `pnpm lint`; `pnpm typecheck`; `pnpm check:deps`; `pnpm test` three times with three different seeds (`HYPERGEIST_TEST_SEED=1`, `HYPERGEIST_TEST_SEED=20261115`, `HYPERGEIST_TEST_SEED=424242`; check `test-support/seed.ts` for the exact variable name); `XDG_CONFIG_HOME=/tmp/wrangler-xdg WRANGLER_SEND_METRICS=false pnpm build`; `pnpm stack validate apps/web/src/stacks/thin-slice-todo.json` and `pnpm stack validate scripts/stack/fixtures/all-types-stack.json` (both must print a valid result)
     - Also check: `git diff --stat -- package.json pnpm-lock.yaml packages/shared/package.json apps/web/package.json apps/worker/package.json` is empty; no `.tsx` file contains `--ghost`; `.kiro` is not in `.gitignore`. If a seed run fails, record the seed and the shrunk counterexample from the output and fix the cause in a follow-up task instead of changing the test. Do not commit
     - _Requirements: 1.1, 5.12, 9.5, 10.1, 11.3, 11.4, 11.6, 11.7, 11.8, 11.14_
 
-- [ ] 13. USER CHECKPOINT: run the end-to-end tests (Developer runs this in their own terminal)
-  - [ ] 13.1 Ask the Developer to run `pnpm test:e2e`
+- [x] 13. USER CHECKPOINT: run the end-to-end tests (Developer runs this in their own terminal)
+  - [x] 13.1 Ask the Developer to run `pnpm test:e2e`
     - Chromium cannot run in the agent sandbox. Stop and ask the Developer to run `pnpm test:e2e` from the repo root in their own terminal and report the result. If a test fails, record the failure and fix it in a follow-up task. Mark this task done only after the Developer reports a pass
     - _Requirements: 5.10_
 
-- [ ] 14. Final checkpoint - Ensure all tests pass
+- [x] 14. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise. Remind the Developer to review the diff and commit; no task commits, pushes, or deploys.
 
 ## Notes

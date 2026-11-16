@@ -65,7 +65,7 @@ Read these before every task. They override anything else in this file.
     - For each array site that exists now (Cards, Objects, Links, List items, Handler): content of exactly the maximum is valid; one more gives exactly one `LIMIT_EXCEEDED` at the array path; an oversize array that also holds a bad element reports both errors; `validateHandler` with 21 Actions reports `LIMIT_EXCEEDED` at `""`
     - _Requirements: 7.6, 8.5_
 
-- [~] 4. Checkpoint - Ensure all tests pass
+- [x] 4. Checkpoint - Ensure all tests pass
   - Run `pnpm --filter @hypergeist/shared test` and `typecheck`. Ensure all tests pass, ask the user if questions arise.
 
 - [x] 5. Step 4: Canonical text, parser, and serializer
@@ -149,7 +149,7 @@ Read these before every task. They override anything else in this file.
     - Add the new rows: `alt` and `prompt` and `value` `maxLength`, `inputObjectIds` `maxItems` 10 and `uniqueItems`, the `src` pattern, `type` as `const` for all five Object types
     - _Requirements: 11.1_
 
-- [~] 8. Checkpoint - Ensure all tests pass
+- [x] 8. Checkpoint - Ensure all tests pass
   - Run `pnpm --filter @hypergeist/shared test`, `pnpm --filter @hypergeist/shared typecheck`, `pnpm --filter @hypergeist/web typecheck`, and `pnpm exec vitest run apps/web`. Ensure all tests pass, ask the user if questions arise.
 
 - [x] 9. Step 7: Five new Actions
@@ -192,7 +192,7 @@ Read these before every task. They override anything else in this file.
     - Add the Action rows: each `type` `const`, `fetch_news` `topics` `minItems` 1 and `maxItems` 10, `show_message` and `schedule_notification` `message` `maxLength`, `index` `minimum` 0, the `at` `format` and `pattern`, and `oneOf` of two `required` lists for the three pairs
     - _Requirements: 11.1_
 
-- [~] 10. Checkpoint - Ensure all tests pass
+- [x] 10. Checkpoint - Ensure all tests pass
   - Run `pnpm --filter @hypergeist/shared test`, both typechecks, and `pnpm exec vitest run apps/web scripts`. Ensure all tests pass, ask the user if questions arise.
 
 - [x] 11. Step 8: Generator hardening and the remaining property tests
@@ -254,7 +254,7 @@ Read these before every task. They override anything else in this file.
     - **Property 13: Exactly one of each pair** (for any `set_value`, `append_item`, or `schedule_notification` Action, both or neither member gives exactly one `INVALID_VALUE` at the Action path; exactly one member is valid)
     - **Validates: Requirements 6.4, 6.5, 6.11**
 
-- [~] 12. Checkpoint - Ensure all tests pass
+- [x] 12. Checkpoint - Ensure all tests pass
   - Run `pnpm --filter @hypergeist/shared test` and `typecheck`. Ensure all tests pass, ask the user if questions arise.
 
 - [x] 13. Step 9: CLI fixture and docs
@@ -294,12 +294,12 @@ Read these before every task. They override anything else in this file.
     - `pnpm format` is allowed here because no task runs in parallel. Fix failures that this spec caused; report anything else. Do not run `pnpm test:e2e`
     - _Requirements: 7.2, 9.7, 10.2, 11.1, 12.2, 12.4, 12.6, 12.7_
 
-- [ ] 17. USER CHECKPOINT: run the end-to-end tests (Developer runs this in their own terminal)
-  - [-] 17.1 Ask the Developer to run `pnpm test:e2e`
+- [x] 17. USER CHECKPOINT: run the end-to-end tests (Developer runs this in their own terminal)
+  - [x] 17.1 Ask the Developer to run `pnpm test:e2e`
     - Chromium cannot run in the agent sandbox. Ask the Developer to run `pnpm test:e2e` in their own terminal and report the result. If a test fails, record the failure and fix it in a follow-up task
     - _Requirements: 3.2, 9.2_
 
-- [~] 18. Final checkpoint - Ensure all tests pass
+- [x] 18. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise. Remind the Developer to review the diff and commit; no task commits, pushes, or deploys.
 
 ## Notes
