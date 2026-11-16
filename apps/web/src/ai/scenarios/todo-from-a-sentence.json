@@ -1,0 +1,70 @@
+{
+  "id": "todo-from-a-sentence",
+  "title": "A to-do list from one sentence",
+  "prompts": ["Make me a to-do list", "Make a to-do list", "I need a to-do list"],
+  "mode": "new-stack",
+  "replies": [
+    {
+      "toolCalls": [
+        { "name": "create_stack", "arguments": { "name": "To-do" } },
+        {
+          "name": "add_object",
+          "arguments": {
+            "cardId": "{{currentCardId}}",
+            "type": "field",
+            "id": "todo-new",
+            "name": "New item",
+            "x": 24,
+            "y": 24,
+            "width": 320,
+            "height": 32,
+            "placeholder": "What needs doing?"
+          }
+        },
+        {
+          "name": "add_object",
+          "arguments": {
+            "cardId": "{{currentCardId}}",
+            "type": "list",
+            "id": "todo-items",
+            "name": "To-do items",
+            "x": 24,
+            "y": 72,
+            "width": 464,
+            "height": 220
+          }
+        },
+        {
+          "name": "add_object",
+          "arguments": {
+            "cardId": "{{currentCardId}}",
+            "type": "button",
+            "id": "todo-add",
+            "label": "Add",
+            "x": 360,
+            "y": 24,
+            "width": 100,
+            "height": 32
+          }
+        }
+      ]
+    },
+    {
+      "toolCalls": [
+        {
+          "name": "set_action",
+          "arguments": {
+            "ownerId": "todo-add",
+            "handler": [
+              { "type": "append_item", "targetObjectId": "todo-items", "fromObjectId": "todo-new" },
+              { "type": "set_value", "targetObjectId": "todo-new", "value": "" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "content": "I made a to-do list with a field, a list and an Add button. Type a task and press Add."
+    }
+  ]
+}

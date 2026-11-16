@@ -1,0 +1,7 @@
+{
+  "id": "summarize-text",
+  "title": "Summarize notes in a runtime AI field",
+  "prompts": ["Summarize my notes in one sentence"],
+  "mode": "text",
+  "replies": [{ "content": "This is a recorded demo summary of your notes." }]
+}

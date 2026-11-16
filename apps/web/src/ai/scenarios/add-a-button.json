@@ -1,0 +1,25 @@
+{
+  "id": "add-a-button",
+  "title": "Add a button to the current card",
+  "prompts": ["Add a button", "Add a button to this card"],
+  "mode": "edit",
+  "replies": [
+    {
+      "toolCalls": [
+        {
+          "name": "add_object",
+          "arguments": {
+            "cardId": "{{currentCardId}}",
+            "type": "button",
+            "label": "New button",
+            "x": 24,
+            "y": 24,
+            "width": 120,
+            "height": 32
+          }
+        }
+      ]
+    },
+    { "content": "I added a button." }
+  ]
+}
