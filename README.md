@@ -7,17 +7,24 @@ talking to it. It is an entry in the Kiroween 2026 hackathon, in the **Resurrect
 
 This repository holds the monorepo scaffold and the first thin slice of the product: a stack format
 with a validator, a pure action engine, a command-line validator, and a retro desktop that plays one
-small to-do stack. AI, saving, and sharing are not built yet (see [Limits](#limits-of-the-thin-slice)).
+small to-do stack. Stacks are saved in the browser, and a Stacks window opens, exports, imports, and
+deletes them. AI and sharing are not built yet (see [Limits](#limits-of-the-thin-slice)).
 
 ## What the app does today
 
 Opening the app shows a retro desktop with a menu bar, one stack window, and a Ghost window.
 
-- **The to-do stack.** The app opens on a bundled stack of three cards: To-do, About, and Limits. On
-  the To-do card you type a task into the "New item" field and press Add. The task appears in the
-  list below. Links and buttons move between the three cards. The stack file is
-  `apps/web/src/stacks/thin-slice-todo.json`, and the app validates it at startup. If it were
-  invalid, the app would show an error screen that lists each error instead of the stack.
+- **The to-do stack.** The first time the app opens in a browser, it stores a bundled stack of three
+  cards: To-do, About, and Limits, and opens it. On the To-do card you type a task into the "New
+  item" field and press Add. The task appears in the list below. Links and buttons move between the
+  three cards. The stack file is `apps/web/src/stacks/thin-slice-todo.json`. The app checks every
+  bundled stack and every stored stack before it uses it.
+- **Saving.** The app saves the open stack in the browser about a second after your last change.
+  The stack window shows "Saved", "Saving", or "Not saved". After a reload, the app opens the stack
+  you had open last. See [Saving and the Stacks window](#saving-and-the-stacks-window).
+- **The Stacks window.** The Stacks button in the menu bar opens it. It lists your stacks and lets
+  you open, export, and delete them. It also imports a stack file, restores the demo stacks, and
+  keeps a trash for deleted stacks.
 - **Interact mode.** The default. Buttons run their actions, fields take typing (read-only fields
   do not), and links navigate.
 - **Edit mode.** Click an object to select it. The selected object gets a dashed outline with
@@ -227,11 +234,131 @@ truncated }` for an invalid stack.
   bounds, and the 2,000-character limit on `https:` image sources) are checked by the validator,
   not by the schema.
 
+## Stack engine
+
+`@hypergeist/shared/engine` holds the pure operations over a stack. Nothing in it reads a clock,
+generates a random id, touches the network, or modifies its input. Callers pass ids in, and equal
+calls give deeply equal results.
+
+- `executeHandler(stack, handler)`: runs a handler of all nine actions. It returns
+  `{ stack, effects, navigateTo?, messages }`. Actions that need the outside world (`run_ai_field`,
+  `fetch_news`, `transcribe_audio`, `schedule_notification`) are not carried out. They come back as
+  plain-data effect requests in `effects`, for a later runtime to run.
+- `applyOperation(stack, name, params)`: applies one of seven operations (`create_card`,
+  `delete_card`, `add_object`, `update_object`, `remove_object`, `link_cards`, `set_action`). The
+  result is `{ ok: true, stack, summary }` or `{ ok: false, errors, truncated }`. A rejected
+  operation never carries a stack, and an accepted one always returns a stack that passes
+  `validateStack`. The summary lists `created`, `updated` and `removed` ids and a `removedActions`
+  count. Errors use the same `Validation_Error` shape as the validator (`code`, JSON Pointer
+  `path`, `message`, `expected`, `actual`, `hint`).
+- `OPERATIONS` and `operationJsonSchema(name)`: the name, description and parameter schema of each
+  operation, and its JSON Schema. These come from the Zod schemas, so a tool registry can be built
+  from them without a second copy.
+- `buildRenderModel(stack, cardId)`: a plain, JSON-safe description of one card, ready to draw.
+- `remixStack(stack, newId)`: copies a stack under a new id and records the old one in
+  `remixedFrom`.
+- `createStack(params)`: makes a valid one-card stack from an id, a name and optional sizes.
+
+What is not connected yet: the app does not call `applyOperation` or `buildRenderModel`, and it does
+not run effects. The app uses `createStack` only to make a new empty stack when the last one is
+deleted, and `remixStack` only to make a copy on an id conflict. When a button runs an action that returns an effect
+request, the status line says the feature arrives in a later release.
+
+## Saving and the Stacks window
+
+**What is stored, and where.** Stacks are stored in the browser's IndexedDB, in a database named
+`hypergeist`, through the `idb` library. The data is private to that browser profile. Each stored
+stack has a saved time and a label: "Demo" for a bundled stack, "Yours" for any other. Deleted
+stacks go to a separate trash store, and the id of the stack you had open last is stored too. Every
+stack is checked with the shared validator before it is written and when it is read. A stored record
+that fails the check is set aside unchanged, and the Stacks window says how many were set aside. The
+app does not store API keys or settings.
+
+**First run.** When the database is new, the app writes the bundled demo stacks once and opens one.
+A demo stack you delete does not come back on reload.
+
+**Autosave.** About a second after your last change, the app writes the open stack. Several changes
+in that second make one write. The label in the stack window reads "Saved", "Saving", or "Not saved"
+with a reason. When storage is full, the label also offers to export the stack.
+
+**Export.** Export downloads one stack as `<name>-<id>.hypergeist.json`. The name part is the stack
+name in lower case, with other characters turned into `-`, cut to 40 characters. The file holds the
+stack and nothing else. If the stack is invalid, the app shows the first problem and makes no file.
+
+**Import.** An imported file is untrusted data. The app refuses a file over 5 MB before it reads it,
+and then parses and validates the text. If that fails, it stores nothing and shows up to 5 errors,
+and says how many more it left out. An import never overwrites a stack. If the id is already used,
+the app offers to import a copy under a new id (the original id plus `-copy`), or to cancel. An
+imported stack is never run as code. It only changes when you press its buttons.
+
+**Trash and restore.** Delete moves a stack to the trash in one step. Restore moves it back. If its
+id is in use by another stack, the app offers a copy under a new id. "Delete permanently" and "Empty
+trash" ask for confirmation. If you delete the open stack, the app opens another one, or makes a new
+empty stack if none is left.
+
+**Restore demo stacks.** After you confirm, each bundled demo stack replaces the stored stack with
+the same id, and any missing demo stack is added. A replaced stack that you had changed goes to the
+trash. Stacks that are not demo stacks are not touched.
+
+**Adding a demo stack.** Put one JSON file per stack directly in `apps/web/src/stacks/`. The app
+reads every `.json` file in that folder at build time, so no code change is needed. A test fails if
+a file is not a valid stack. A browser that already has a stored copy keeps it until you choose
+"Restore demo stacks".
+
+## AI orchestrator
+
+The logic that lets a model build and edit stacks is in `apps/web/src/ai/`. It has no UI. **Nothing
+in the app calls it yet.** The chat, the AI-edit mode and the settings dialog arrive with the
+`ai-assistant-ui` spec. Until then it runs only in tests. Its tests use scripted and recorded
+providers, so **no live model has been tried yet**. `docs/manual-verification-ai.md` is the checklist
+for trying real providers.
+
+- **A Turn.** `runTurn` sends one user message and a compact view of the stack to a provider and
+  applies each tool call with `applyOperation`. The stack it returns is always valid. It also returns
+  the stack from before the Turn, so the caller can undo the whole Turn.
+- **Tools.** The seven operations of the stack engine, plus `say` (talk to the user) and
+  `create_stack` (name a new stack, offered only when a Turn starts one). The tool schemas come from
+  `OPERATIONS` and `operationJsonSchema`.
+- **Limits of a Turn.** At most 8 model requests, 40 tool calls and 90 seconds. At most 6 rejected
+  calls, and at most 2 repair rounds in a row.
+- **Repair loop.** A rejected call goes back to the model as a short message built from the
+  validation errors, and the model may try again. A Turn that applied some calls and then stopped
+  (a limit, an error, or a call that stayed rejected) ends as `partial` and keeps the accepted
+  changes. A Turn where no call was accepted and a call was rejected, or that stopped on an error,
+  ends as `failed` and leaves the stack as it was. A Turn where the model only talks ends as `done`.
+  A model that rejects tool calling is asked for one JSON object per reply instead.
+- **Providers.** Demo mode (the default) tries the shared model through `POST /api/ai/chat` on the
+  app's own origin, then falls back to recorded examples. The Worker has no such route yet, so today
+  the demo fallback always ends on the recorded examples. An own key and base URL are optional. They
+  go from the browser straight to that provider and never through the Worker. The key is kept in
+  memory only and is never written to IndexedDB or to a stack. The base URL and model name are saved
+  in a separate IndexedDB database, `hypergeist-settings`. The base URL must be `https:`, or `http:`
+  for `localhost` and `127.0.0.1` only.
+- **Demo examples.** The recorded provider knows two example prompts: `Make me a to-do list` (builds
+  a new stack) and `Add a button` (adds a button to the current card). A prompt must match exactly,
+  after the text is trimmed, lower-cased and has its spaces collapsed and any `.`, `!` or `?` removed
+  at the end. There is no fuzzy matching. Any other prompt gets a reply that lists the examples and
+  changes nothing. Add an example by putting a JSON file in `apps/web/src/ai/scenarios/`.
+- **Text for AI fields.** `completeText` asks a provider for the text of one `ai-field`. It never
+  changes a stack. Writing the text into the field is for a later spec.
+
 ## Limits of the thin slice
 
 - **No AI.** Nothing in the app talks to a model. The Ghost is a placeholder.
-- **No saving.** Nothing is written to storage, so reloading the page resets the stack. The app says
-  so in the stack window.
+- **Stacks live in this browser only.** They are stored in IndexedDB. Nothing is sent to a server.
+  Clearing the browser's site data deletes them. Export a stack to keep a copy.
+- **Two tabs overwrite each other.** If two tabs have the same stack open, each save replaces the
+  stored stack, so the last save wins. There is no live sync between tabs.
+- **The last second may be lost.** A change is written about a second after you stop. When a tab is
+  closed, the app starts the write at once, but a browser may end the page before it finishes. The
+  "Saved" label shows when it is safe to close the tab.
+- **The open card and the mode are not saved.** After a reload, the stack opens on its start card in
+  Interact mode.
+- **Memory mode.** If the browser blocks storage (some private windows do), the app still works and
+  loads the demo stacks into memory. A banner says that changes are lost when the page closes. Export
+  before you leave. Export and import still work.
+- **Size limits.** An import file can be at most 5 MB. The trash keeps the 50 newest deleted stacks,
+  and the oldest is deleted for good when a 51st arrives.
 - **No object editing.** Edit mode is selection plus a read-only property view. You cannot move,
   resize, or change objects, and you cannot add cards.
 - **`onOpen` handlers are validated but not run.** The bundled stack leaves them empty.
@@ -248,6 +375,8 @@ truncated }` for an invalid stack.
 ## New dependencies in the web app
 
 - `zustand` holds the app state (current card, mode, selection, status message).
+- `idb` is a small wrapper around IndexedDB. It stores the stacks in the browser.
+- `fake-indexeddb` (dev dependency) is an in-memory IndexedDB for the tests, so they need no browser.
 - `@fontsource/pixelify-sans` and `@fontsource/vt323` bundle the two fonts of the retro look. Both
   fonts are licensed under the SIL Open Font License 1.1 (see `docs/assets-licenses.md`). The Vite
   build emits the font files into `apps/web/dist`, so the app loads them from its own origin.
@@ -285,7 +414,8 @@ hypergeist/
 ├── .github/workflows/   CI workflow (no deploy job)
 ├── .kiro/               Kiro specs, steering, and hooks (committed on purpose)
 ├── apps/
-│   ├── web/             React + Vite app (@hypergeist/web)
+│   ├── web/             React + Vite app (@hypergeist/web); src/persistence/ holds browser storage
+│   │                    src/ai/ holds the AI orchestrator (logic only, no UI yet)
 │   └── worker/          Hono app on Cloudflare Workers (@hypergeist/worker)
 ├── docs/                project brief, asset licenses, Kiro journal
 ├── e2e/                 Playwright tests
