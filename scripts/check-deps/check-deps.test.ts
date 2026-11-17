@@ -103,13 +103,14 @@ describe('check-deps import forms', () => {
     expect(violations.map((v) => v.line)).toEqual([3]);
   });
 
-  it('allows the three public shared entry points', () => {
+  it('allows the four public shared entry points', () => {
     const violations = checkFile({
       path: 'apps/web/src/ok.ts',
       text: [
         "import '@hypergeist/shared';",
         "import '@hypergeist/shared/format';",
         "import '@hypergeist/shared/engine';",
+        "import '@hypergeist/shared/ai-wire';",
       ].join('\n'),
     });
     expect(violations).toEqual([]);

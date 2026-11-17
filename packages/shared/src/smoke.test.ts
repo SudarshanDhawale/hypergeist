@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as root from './index.ts';
 import * as format from './format/index.ts';
 import * as engine from './engine/index.ts';
+import * as aiWire from './ai-wire/index.ts';
 
 describe('shared package entry points', () => {
   it('loads the root entry module with no exports yet', () => {
@@ -19,6 +20,15 @@ describe('shared package entry points', () => {
       'executeHandler',
       'operationJsonSchema',
       'remixStack',
+    ]);
+  });
+
+  it('exports exactly the public ai-wire API', () => {
+    expect(Object.keys(aiWire).sort()).toEqual([
+      'AI_WIRE_LIMITS',
+      'ChatRequestSchema',
+      'PublicReplySchema',
+      'UpstreamReplySchema',
     ]);
   });
 

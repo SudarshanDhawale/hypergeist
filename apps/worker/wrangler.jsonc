@@ -8,4 +8,37 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
   },
+  // Counters of the AI proxy (daily and lifetime caps). SQLite-backed Durable Object.
+  "durable_objects": {
+    "bindings": [{ "name": "QUOTA", "class_name": "QuotaStore" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuotaStore"] }],
+  // Burst limit: 10 requests per 60 seconds per key.
+  "ratelimits": [
+    {
+      "name": "AI_BURST",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 },
+    },
+  ],
+  // Non-secret configuration. Secrets (SARVAM_API_KEY, OPENAI_API_KEY, QUOTA_SALT) are never
+  // written here: use `wrangler secret put`, or an untracked `.dev.vars` for local development.
+  // The cap values mirror DEFAULTS in src/lib/config.ts (a test pins that).
+  "vars": {
+    "AI_ENABLED": "true",
+    // The Developer adds the deployed URL (for example https://hypergeist.<account>.workers.dev).
+    "AI_ALLOWED_ORIGINS": "http://localhost:8787,http://localhost:5173",
+    "AI_ALLOWED_MODELS": "",
+    "AI_PROVIDERS": "sarvam",
+    // Placeholders: the AI stays disabled (AI_DISABLED) until the model ids are set.
+    "AI_SARVAM_MODEL": "",
+    "AI_OPENAI_MODEL": "",
+    "AI_VISITOR_DAILY_CAP": "60",
+    "AI_DAILY_CAP": "400",
+    "AI_DAILY_TOKEN_CAP": "1000000",
+    "AI_LIFETIME_CAP": "6000",
+    "AI_LIFETIME_TOKEN_CAP": "6000000",
+    "AI_MAX_OUTPUT_TOKENS": "2048",
+    "AI_REASONING_EFFORT": "",
+  },
 }

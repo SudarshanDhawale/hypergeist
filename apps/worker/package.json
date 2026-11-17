@@ -10,11 +10,13 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261113.1",
+    "fast-check": "^4.10.2",
     "vitest": "^5.1.0",
     "wrangler": "^4.161.0"
   },
   "dependencies": {
     "@hypergeist/shared": "workspace:*",
-    "hono": "^4.13.18"
+    "hono": "^4.13.18",
+    "zod": "^4.6.7"
   }
 }

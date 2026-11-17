@@ -27,6 +27,7 @@ export const SHARED_PUBLIC_ENTRY_POINTS: readonly string[] = [
   '@hypergeist/shared',
   '@hypergeist/shared/format',
   '@hypergeist/shared/engine',
+  '@hypergeist/shared/ai-wire',
 ];
 
 type Owner = 'shared' | 'web' | 'worker';

@@ -1,0 +1,11 @@
+# Local development. Copy this file to `.dev.vars` (untracked, listed in .gitignore) and put the
+# real values there. Never put a real value in this file.
+SARVAM_API_KEY=
+OPENAI_API_KEY=
+QUOTA_SALT=
+# Local-dev examples for vars (set them here in `.dev.vars` to override wrangler.jsonc):
+# AI_ALLOWED_ORIGINS=http://localhost:8787,http://localhost:5173
+# AI_PROVIDERS=sarvam
+# AI_SARVAM_MODEL=<model id of the Sarvam chat model>
+# AI_OPENAI_MODEL=<model id of the OpenAI chat model>
+# AI_ENABLED=true

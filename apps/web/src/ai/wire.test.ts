@@ -1,5 +1,8 @@
+import { AI_WIRE_LIMITS, ChatRequestSchema } from '@hypergeist/shared/ai-wire';
 import { describe, expect, it } from 'vitest';
 import { PROVIDER_ERROR_CODES } from './errors.ts';
+import { toolCall } from './testing/scripted-provider.ts';
+import { buildToolRegistry, toOpenAiTools } from './tools.ts';
 import type { ChatRequest, OpenAiTool } from './types.ts';
 import { MAX_TOOL_CALLS_PER_REPLY, parseWireReply, toWireBody } from './wire.ts';
 
@@ -363,5 +366,86 @@ describe('parseWireReply', () => {
   it('does not set noMatch', () => {
     const result = parseWireReply(reply({ content: 'x' }));
     expect(result.ok && 'noMatch' in result.reply).toBe(false);
+  });
+});
+
+describe('contract with the Worker proxy schema', () => {
+  // The Worker parses every request with `ChatRequestSchema`. A body that the browser builds with
+  // `toWireBody` must pass it unchanged, or the hosted path would answer BAD_REQUEST.
+  function expectParses(body: unknown): void {
+    const result = ChatRequestSchema.safeParse(body);
+    if (!result.success) {
+      throw new Error(
+        `ChatRequestSchema rejected the body: ${JSON.stringify(result.error.issues)}`,
+      );
+    }
+    expect(result.success).toBe(true);
+  }
+
+  it('accepts a plain user request', () => {
+    expectParses(toWireBody('auto', request()));
+  });
+
+  it('accepts a request with the compact tool registry and stays well under the body limit', () => {
+    const tools = toOpenAiTools(buildToolRegistry({ newStack: true }));
+    const body = toWireBody('auto', request({ tools }));
+    expect(body.tool_choice).toBe('auto');
+    expect(body.tools?.length).toBe(tools.length);
+    expectParses(body);
+    const bytes = new TextEncoder().encode(JSON.stringify(body)).length;
+    // About 11.6 KB when written (2026-11-15), against the 128 KB limit. A quarter of the limit
+    // leaves room for history and the card context.
+    expect(bytes).toBeLessThan(AI_WIRE_LIMITS.maxBodyBytes / 4);
+  });
+
+  it('accepts a history with an assistant tool-call message (null content) and a tool message', () => {
+    const body = toWireBody(
+      'auto',
+      request({
+        messages: [
+          { role: 'system', content: 'sys' },
+          { role: 'user', content: 'add a button' },
+          {
+            role: 'assistant',
+            content: null,
+            toolCalls: [
+              toolCall('say', { text: 'ok' }, 'call-1'),
+              toolCall('say', { text: 'again' }, 'call-2'),
+            ],
+          },
+          { role: 'tool', toolCallId: 'call-1', content: '{"ok":true}' },
+          { role: 'tool', toolCallId: 'call-2', content: '{"ok":true}' },
+        ],
+      }),
+    );
+    expect(body.messages[2]).toMatchObject({ role: 'assistant', content: null });
+    expectParses(body);
+  });
+
+  it('accepts a request with the maxTokens option', () => {
+    const body = toWireBody('auto', request(), { maxTokens: 1024 });
+    expect(body.max_tokens).toBe(1024);
+    expectParses(body);
+  });
+
+  it('accepts a JSON-mode request (no tools)', () => {
+    const body = toWireBody(
+      'auto',
+      request({
+        messages: [
+          { role: 'system', content: 'Reply with one JSON object.' },
+          { role: 'user', content: 'make a to-do stack' },
+        ],
+      }),
+      { maxTokens: 2048 },
+    );
+    expect('tools' in body).toBe(false);
+    expect('tool_choice' in body).toBe(false);
+    expectParses(body);
+  });
+
+  it('rejects a body with an unknown top-level field (the check is not vacuous)', () => {
+    const body = { ...toWireBody('auto', request()), response_format: { type: 'json_object' } };
+    expect(ChatRequestSchema.safeParse(body).success).toBe(false);
   });
 });

@@ -5,7 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./format": "./src/format/index.ts",
-    "./engine": "./src/engine/index.ts"
+    "./engine": "./src/engine/index.ts",
+    "./ai-wire": "./src/ai-wire/index.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

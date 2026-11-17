@@ -18,7 +18,7 @@ Do not swap these without asking the user.
 - Endpoints: AI proxy, news/RSS fetch (CORS), transcription forwarding, share/remix store.
 - The demo API key is a Worker secret and never reaches the browser.
 - AI proxy: per-IP rate limit, model allowlist, daily cap.
-- Providers sit behind one OpenAI-compatible adapter: Groq primary, Gemini fallback, then recorded-response fallback.
+- Providers sit behind one OpenAI-compatible adapter: Sarvam for development and OpenAI for the submission (Developer's decision, 2026-11-15, replacing Groq and Gemini), then recorded-response fallback. The provider is Worker configuration, not code.
 
 ## Browser APIs
 MediaRecorder (voice), Web Audio (retro sounds), Notifications.
