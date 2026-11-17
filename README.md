@@ -342,6 +342,18 @@ for trying real providers.
 - **Text for AI fields.** `completeText` asks a provider for the text of one `ai-field`. It never
   changes a stack. Writing the text into the field is for a later spec.
 
+## AI proxy (Worker)
+
+The Worker has an AI proxy for demo mode: `POST /api/ai/chat` forwards a chat request to a model provider with a hosted key, and `GET /api/ai/quota` returns the day's request counts for a demo counter. The browser never sees the key. The key is a Cloudflare secret.
+
+- **Providers.** `sarvam` (development) and `openai` (submission), chosen by the `AI_PROVIDERS` variable. The endpoints are fixed in the code. The model names are variables, and the AI stays disabled until they are set.
+- **Limits.** Same origin only (an `Origin` check), a 128 KB body limit, strict request validation (the schema is in `@hypergeist/shared/ai-wire`, shared with the browser), a burst limit per visitor, and caps per visitor, per day and in total, in requests and in tokens. The counters live in a SQLite Durable Object. If the counters or the burst limiter fail, the proxy refuses to call the provider.
+- **What the browser gets.** Only the message content, the tool calls and the finish reason. Provider errors, usage numbers and headers never leave the Worker.
+- **Kill switch.** `AI_ENABLED=false`, or a missing key or model, makes every chat call answer `AI_DISABLED`.
+- **Run it locally.** Copy `apps/worker/.dev.vars.example` to `apps/worker/.dev.vars`, fill in the values, set the model variables, then `pnpm --filter @hypergeist/worker dev`. See `docs/deployment.md`.
+
+It is not deployed until the Developer deploys it (`docs/deployment.md`). Nothing in the web app calls it yet: the AI panel arrives with `ai-assistant-ui`. No real provider has been tried yet.
+
 ## Limits of the thin slice
 
 - **No AI.** Nothing in the app talks to a model. The Ghost is a placeholder.
@@ -430,8 +442,8 @@ Dependency rules, enforced by `pnpm check:deps`:
 
 - `packages/shared` imports nothing from `apps/`.
 - `apps/web` and `apps/worker` never import each other.
-- Apps import the shared package only through `@hypergeist/shared`, `@hypergeist/shared/format`, or
-  `@hypergeist/shared/engine`.
+- Apps import the shared package only through `@hypergeist/shared`, `@hypergeist/shared/format`,
+  `@hypergeist/shared/engine`, or `@hypergeist/shared/ai-wire`.
 
 ## Deployment shape
 

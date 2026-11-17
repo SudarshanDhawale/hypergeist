@@ -1,6 +1,6 @@
 # Manual verification: AI orchestrator
 
-Spec: `.kiro/specs/ai-orchestrator` (Requirement 13.8). Do this list with at least two real providers before submission: Groq, Gemini through its OpenAI-compatible endpoint, and one local model on `http://localhost` if you have one. The automated tests use scripted and recorded providers, so they cannot show how real models and real provider limits behave.
+Spec: `.kiro/specs/ai-orchestrator` (Requirement 13.8). Do this list with at least two real providers before submission: Sarvam (`https://api.sarvam.ai/v2`) and OpenAI (`https://api.openai.com/v1`), and one local model on `http://localhost` if you have one. The automated tests use scripted and recorded providers, so they cannot show how real models and real provider limits behave.
 
 **There is no UI yet.** Nothing in the app calls the orchestrator until the `ai-assistant-ui` spec. So most cases below run through one temporary Vitest file that calls the orchestrator with the real `fetch`. Cases that need the UI are marked **Waits for `ai-assistant-ui`**, and the case that needs the Worker route is marked **Waits for `worker-backend`**. Leave their Result column empty until then.
 
@@ -22,7 +22,7 @@ When you are done, delete it: `rm apps/web/src/ai/zz-try.local.test.ts`. If you 
 AI_BASE_URL=https://api.example.com/v1 AI_MODEL=model-name AI_KEY=... pnpm exec vitest run apps/web/src/ai/zz-try.local.test.ts -t "capabilities"
 ```
 
-Replace the three values with the real ones for the provider. The base URL is the address that comes before `/chat/completions`. Examples, to check against the provider's documentation: `https://api.groq.com/openai/v1` for Groq, `https://generativelanguage.googleapis.com/v1beta/openai` for Gemini, `http://localhost:11434/v1` for a local Ollama. The `-t` text picks the case. Typing the key in the command line puts it in your shell history. To avoid that, read it once without echo, run the cases, and remove it from the session:
+Replace the three values with the real ones for the provider. The base URL is the address that comes before `/chat/completions`. Examples, to check against the provider's documentation: `https://api.sarvam.ai/v2` for Sarvam, `https://api.openai.com/v1` for OpenAI, `http://localhost:11434/v1` for a local Ollama. The `-t` text picks the case. Typing the key in the command line puts it in your shell history. To avoid that, read it once without echo, run the cases, and remove it from the session:
 
 ```sh
 read -s "AI_KEY?Key: "

@@ -98,3 +98,23 @@ Copy this block for each new entry and add it below, newest last.
 - The design assumed `zod` was available in `apps/web`. It was only in `packages/shared`, so three agents hit the same missing module in the first wave. Cost: one user install and a delayed wave. Lesson: check each import of the design against the package that owns it, not against the repo.
 - One sub-agent call failed with "client has been throttled" when too many ran at once. Re-running it worked.
 - The first compact tool-schema pass was 13,903 characters, over the 12,000 budget, and had to be tightened.
+
+### 2026-11-16 (Worker AI proxy)
+
+**What was done with Kiro:**
+
+- Drafted the Worker requirements from the Cloudflare docs read that day (Workers Free limits, the Rate Limiting binding, SQLite Durable Objects on the free plan) and found that the real constraint was the model provider's free tier, not Cloudflare. The Developer then chose paid credits: Sarvam for development and OpenAI for the submission. That changed the design from a Groq and Gemini plan to a fixed provider table, with token caps next to request caps.
+- Ran 20 tasks in orchestrator mode in about seven waves of parallel sub-agents. Six property tests cover the proxy: closed set of answers, allowlist of forwarded fields, caps across UTC days, fail closed, reply allowlist, visitor key.
+
+**What worked:**
+
+- Putting the wire schema in `@hypergeist/shared/ai-wire` made the browser and the Worker share one definition. A contract test showed the browser's real output (about 11.6 KB with the compact tool schemas, 9% of the 128 KB limit) parses with it on the first try.
+- A mutation check on the caps property (giving the visitor cap one extra slot) made it fail, which shows the property can catch the bug it is meant to catch.
+- Agents wrote down what they could not verify (Sarvam auth header, dashboard behavior, free-account namespace id) instead of asserting it. Those became manual cases.
+
+**What did not:**
+
+- The design said `AI_BURST_LIMIT` could be a variable; the Rate Limiting binding takes its limit from `wrangler.jsonc`, so the requirement was corrected before any code was written.
+- The design's failover test (wrong model on the first provider, right one on the second) cannot work, because 400 to 404 from a provider are deliberately not retried. The checklist says so and the unit tests cover failover.
+- `.gitignore` ignored `.dev.vars` but not `.dev.vars.staging`. A guard test found it and a two-line change fixed it.
+- Two agents hit the same TypeScript error: the shared seed helper uses `globalThis.crypto`, which the worker project does not declare, so two property tests keep a local copy of the helper.
