@@ -151,6 +151,42 @@ describe('worker app: AI routes', () => {
     expectAiHeaders(response);
   });
 
+  it('serves a browser-style quota GET: no Origin, Sec-Fetch-Site: same-origin', async () => {
+    const { deps } = fakeDeps();
+    const response = await buildApp(deps).request(
+      '/api/ai/quota',
+      { headers: { 'sec-fetch-site': 'same-origin', 'cf-connecting-ip': '203.0.113.7' } },
+      FAKE_ENV,
+    );
+
+    expect(response.status).toBe(200);
+    expectAiHeaders(response);
+  });
+
+  it('refuses a quota GET with neither Origin nor Sec-Fetch-Site', async () => {
+    const { deps } = fakeDeps();
+    const response = await buildApp(deps).request(
+      '/api/ai/quota',
+      { headers: { 'cf-connecting-ip': '203.0.113.7' } },
+      FAKE_ENV,
+    );
+
+    expect(response.status).toBe(403);
+    expectAiHeaders(response);
+  });
+
+  it('refuses a chat POST without Origin even with Sec-Fetch-Site: same-origin', async () => {
+    const { deps, upstream } = fakeDeps();
+    const init = chatInit();
+    const headers = new Headers(init.headers);
+    headers.delete('origin');
+    headers.set('sec-fetch-site', 'same-origin');
+    const response = await buildApp(deps).request('/api/ai/chat', { ...init, headers }, FAKE_ENV);
+
+    expect(response.status).toBe(403);
+    expect(upstream).toEqual([]);
+  });
+
   it('adds the headers to error responses of the chat route', async () => {
     const { deps, upstream } = fakeDeps();
     const forbidden = await buildApp(deps).request(

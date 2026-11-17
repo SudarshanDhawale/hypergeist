@@ -43,4 +43,18 @@ describe('Canvas smoke test', () => {
     fireEvent.keyDown(container.querySelector('.canvas') as Element, { key: 'Escape' });
     expect(store.getState().selectedObjectId).toBeNull();
   });
+
+  it('selects an object in AI edit mode with 8 handles, data-mode ai-edit, and Escape clears it', () => {
+    const { container, store } = renderCanvas();
+    act(() => store.getState().setMode('ai-edit'));
+    expect(container.querySelector('.canvas')?.getAttribute('data-mode')).toBe('ai-edit');
+    fireEvent.click(container.querySelector('.canvas-object[data-type="button"]') as Element);
+    expect(store.getState().selectedObjectId).toBe('todo-add');
+    expect(container.querySelectorAll('.selection-overlay .selection-handle')).toHaveLength(8);
+    // Clicking the button wrapper runs no Handler.
+    expect(store.getState().status).toBeNull();
+    fireEvent.keyDown(container.querySelector('.canvas') as Element, { key: 'Escape' });
+    expect(store.getState().selectedObjectId).toBeNull();
+    expect(container.querySelector('.selection-overlay')).toBeNull();
+  });
 });

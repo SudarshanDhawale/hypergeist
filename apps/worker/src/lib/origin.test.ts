@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { checkOrigin } from './origin';
+import { checkOrigin as checkOriginForMethod } from './origin';
 
 const ALLOWED = ['https://hypergeist.example', 'http://localhost:5173'] as const;
+
+/** The tests below that do not care about the method use POST, the strictest case. */
+function checkOrigin(
+  headers: Headers,
+  allowedOrigins: readonly string[],
+  method = 'POST',
+): boolean {
+  return checkOriginForMethod(headers, allowedOrigins, method);
+}
 
 function headersOf(init: Record<string, string>): Headers {
   return new Headers(init);
@@ -133,8 +142,67 @@ describe('checkOrigin', () => {
       expect(checkOrigin(headersOf({ origin }), ALLOWED)).toBe(true);
     });
 
-    it('does not make a missing Origin pass', () => {
+    it('does not make a missing Origin pass for POST', () => {
       expect(checkOrigin(headersOf({ 'sec-fetch-site': 'same-origin' }), ALLOWED)).toBe(false);
+    });
+  });
+
+  describe('no Origin header (same-origin GET and HEAD)', () => {
+    const sameOrigin = { 'sec-fetch-site': 'same-origin' };
+
+    it.each(['GET', 'HEAD', 'get', 'Head'])('accepts %s with Sec-Fetch-Site: same-origin', (m) => {
+      expect(checkOrigin(headersOf(sameOrigin), ALLOWED, m)).toBe(true);
+    });
+
+    it('treats an empty Origin like a missing one', () => {
+      expect(checkOrigin(headersOf({ origin: '', ...sameOrigin }), ALLOWED, 'GET')).toBe(true);
+      expect(checkOrigin(headersOf({ origin: '', ...sameOrigin }), ALLOWED, 'POST')).toBe(false);
+    });
+
+    it('rejects GET and HEAD without Sec-Fetch-Site', () => {
+      expect(checkOrigin(new Headers(), ALLOWED, 'GET')).toBe(false);
+      expect(checkOrigin(new Headers(), ALLOWED, 'HEAD')).toBe(false);
+    });
+
+    it.each(['same-site', 'cross-site', 'none', '', 'Same-Origin'])(
+      'rejects GET with Sec-Fetch-Site %j',
+      (value) => {
+        expect(checkOrigin(headersOf({ 'sec-fetch-site': value }), ALLOWED, 'GET')).toBe(false);
+      },
+    );
+
+    it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', '', 'GETX'])(
+      'rejects %j even with Sec-Fetch-Site: same-origin',
+      (m) => {
+        expect(checkOrigin(headersOf(sameOrigin), ALLOWED, m)).toBe(false);
+      },
+    );
+
+    it('still rejects a wrong Origin on GET', () => {
+      expect(
+        checkOrigin(headersOf({ origin: 'https://evil.example', ...sameOrigin }), ALLOWED, 'GET'),
+      ).toBe(false);
+    });
+
+    it('still rejects a cross-site GET that carries a matching Origin', () => {
+      expect(
+        checkOrigin(
+          headersOf({ origin: 'https://hypergeist.example', 'sec-fetch-site': 'cross-site' }),
+          ALLOWED,
+          'GET',
+        ),
+      ).toBe(false);
+    });
+
+    it('accepts a GET with a matching Origin', () => {
+      expect(checkOrigin(headersOf({ origin: 'https://hypergeist.example' }), ALLOWED, 'GET')).toBe(
+        true,
+      );
+    });
+
+    it('never matches with an empty allowed list', () => {
+      expect(checkOrigin(headersOf(sameOrigin), [], 'GET')).toBe(false);
+      expect(checkOrigin(headersOf(sameOrigin), [], 'HEAD')).toBe(false);
     });
   });
 

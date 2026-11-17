@@ -3,7 +3,7 @@ import { propertyRows } from '../lib/property-rows.ts';
 import { useStackStore } from '../state/StackStoreContext.tsx';
 
 /**
- * Read-only table of the selected Object's properties. Shown in Edit mode only.
+ * Read-only table of the selected Object's properties. Shown in Edit and AI edit modes.
  * It holds no editable control: every value is plain text in a `<dd>`.
  */
 export function PropertyReadout() {
@@ -13,7 +13,7 @@ export function PropertyReadout() {
     return card?.objects.find((object) => object.id === state.selectedObjectId);
   });
 
-  if (mode !== 'edit') return null;
+  if (mode === 'interact') return null;
 
   return (
     <section className="property-readout" aria-label="Properties">

@@ -2,11 +2,11 @@
  * Card canvas, objects, and the Edit-mode selection overlay.
  *
  * Markup contract:
- *   .canvas-frame > .canvas[data-mode=interact|edit][data-scale=1|2|3]
+ *   .canvas-frame > .canvas[data-mode=interact|edit|ai-edit][data-scale=1|2|3]
  *   .canvas style sets --card-w, --card-h, --scale (unitless numbers)
  *   .canvas > .canvas-object[data-type][data-readonly]   style sets --x --y --w --h
  *     Interact mode: the native control is the direct child.
- *     Edit mode: the wrapper is the focusable role=button; its child is
+ *     Edit and AI edit modes: the wrapper is the focusable role=button; its child is
  *     .object-preview, which holds the inert control.
  *   .canvas > .selection-overlay (style sets --x --y --w --h)
  *     with 8 span.selection-handle children in this order:
@@ -53,7 +53,8 @@
   cursor: pointer;
 }
 
-.canvas[data-mode='edit'] {
+.canvas[data-mode='edit'],
+.canvas[data-mode='ai-edit'] {
   cursor: crosshair;
 }
 
@@ -128,12 +129,13 @@
   border-style: dashed;
 }
 
-/* Edit mode: objects are previews. Clicks reach the wrapper only. */
+/* Edit and AI edit modes: objects are previews. Clicks reach the wrapper only. */
 .object-preview {
   pointer-events: none;
 }
 
-.canvas[data-mode='edit'] .canvas-object:hover:not(:focus-visible) {
+.canvas[data-mode='edit'] .canvas-object:hover:not(:focus-visible),
+.canvas[data-mode='ai-edit'] .canvas-object:hover:not(:focus-visible) {
   outline: var(--border-thin) solid var(--ink);
   outline-offset: var(--border);
 }

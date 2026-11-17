@@ -1,6 +1,13 @@
 import { useEffect } from 'react';
 import { hintForMode } from '../state/hints.ts';
+import type { Mode } from '../state/stack-store.ts';
 import { useStackStore } from '../state/StackStoreContext.tsx';
+
+const MODE_LABELS: Readonly<Record<Mode, string>> = {
+  interact: 'Interact',
+  edit: 'Edit',
+  'ai-edit': 'AI edit',
+};
 
 /** How long a Status_Message replaces the hint (Requirement 15.2). */
 const STATUS_MESSAGE_MS = 4000;
@@ -34,7 +41,7 @@ export function StatusBar() {
   return (
     <footer className="status-bar" aria-label="Status">
       <span className="status-card">{`Card ${cardNumber} of ${cardCount}`}</span>
-      <span className="status-mode">{mode === 'interact' ? 'Mode: Interact' : 'Mode: Edit'}</span>
+      <span className="status-mode">{`Mode: ${MODE_LABELS[mode]}`}</span>
       <p className="status-hint" role="status" aria-live="polite">
         {status === null ? hintForMode(mode) : status.text}
       </p>

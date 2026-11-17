@@ -77,12 +77,25 @@ describe('initial state', () => {
 });
 
 describe('mode changes', () => {
-  it('toggleMode switches between Interact and Edit', () => {
+  it('toggleMode cycles Interact, Edit, AI edit, Interact', () => {
     const store = demoStore();
     store.getState().toggleMode();
     expect(store.getState().mode).toBe('edit');
     store.getState().toggleMode();
+    expect(store.getState().mode).toBe('ai-edit');
+    store.getState().toggleMode();
     expect(store.getState().mode).toBe('interact');
+  });
+
+  it('setMode accepts ai-edit and clears selection and status', () => {
+    const store = demoStore();
+    store.getState().activateButton('todo-add');
+    store.getState().setMode('ai-edit');
+    expect(store.getState().mode).toBe('ai-edit');
+    expect(store.getState().status).toBeNull();
+    store.getState().selectObject('todo-add');
+    store.getState().toggleMode();
+    expect(store.getState().selectedObjectId).toBeNull();
   });
 
   it('clears the selection when the mode changes', () => {
@@ -122,6 +135,8 @@ describe('mode changes', () => {
     store.getState().toggleMode();
     expect(store.getState().statusSeq).toBe(1);
     store.getState().toggleMode();
+    store.getState().toggleMode();
+    expect(store.getState().mode).toBe('interact');
     store.getState().activateButton('todo-add');
     expect(store.getState().status?.seq).toBe(2);
   });
@@ -170,6 +185,33 @@ describe('selection', () => {
     expect(store.getState().mode).toBe('edit');
   });
 
+  it('selects an object on the current card in AI edit mode', () => {
+    const store = demoStore();
+    store.getState().setMode('ai-edit');
+    store.getState().selectObject('todo-list');
+    expect(store.getState().selectedObjectId).toBe('todo-list');
+    store.getState().selectObject('about-text'); // on another card
+    expect(store.getState().selectedObjectId).toBe('todo-list');
+    store.getState().selectObject('todo-link-about'); // a link, not an object
+    expect(store.getState().selectedObjectId).toBe('todo-list');
+  });
+
+  it('clearSelection clears in AI edit mode and keeps the mode', () => {
+    const store = demoStore();
+    store.getState().setMode('ai-edit');
+    store.getState().selectObject('todo-add');
+    store.getState().clearSelection();
+    expect(store.getState().selectedObjectId).toBeNull();
+    expect(store.getState().mode).toBe('ai-edit');
+  });
+
+  it('selectObject is a no-op in Interact mode', () => {
+    const store = demoStore();
+    const before = store.getState();
+    store.getState().selectObject('todo-add');
+    expect(store.getState()).toBe(before);
+  });
+
   it('clearSelection is a no-op in Interact mode', () => {
     const store = demoStore();
     const before = store.getState();
@@ -209,6 +251,23 @@ describe('Add button flow on the demo stack', () => {
 });
 
 describe('Interact-only actions', () => {
+  it.each(['edit', 'ai-edit'] as const)(
+    'buttons, fields and links are inert in %s mode and never call the executor',
+    (mode) => {
+      const store = demoStore();
+      store.getState().setMode(mode);
+      store.getState().selectObject('todo-add');
+      const before = store.getState();
+      store.getState().activateButton('todo-add');
+      store.getState().typeInField('todo-input', 'Milk');
+      store.getState().followLink('todo-link-about');
+      expect(store.getState()).toBe(before);
+      expect(items(store)).toEqual([]);
+      expect(fieldValue(store, 'todo-input')).toBe('');
+      expect(executeSpy).not.toHaveBeenCalled();
+    },
+  );
+
   it('activateButton does nothing in Edit mode and never calls the executor', () => {
     const store = demoStore();
     store.getState().setMode('edit');
@@ -745,5 +804,119 @@ describe('replaceStack', () => {
     const next = { ...demoStack(), id: 'other' };
     store.getState().replaceStack(next);
     expect(seen).toEqual([next]);
+  });
+});
+
+describe('applyStack', () => {
+  /** The demo stack with the `todo-list` object removed from the first card. */
+  function withoutList(stack: Stack): Stack {
+    return {
+      ...stack,
+      cards: stack.cards.map((card) => ({
+        ...card,
+        objects: card.objects.filter((object) => object.id !== 'todo-list'),
+      })),
+    };
+  }
+
+  it('swaps in the stack and keeps the mode, card and selection', () => {
+    const store = demoStore();
+    store.getState().setMode('ai-edit');
+    store.getState().selectObject('todo-add');
+    const next = withoutList(demoStack());
+    store.getState().applyStack(next);
+
+    const state = store.getState();
+    expect(state.stack).toBe(next);
+    expect(state.mode).toBe('ai-edit');
+    expect(state.currentCardId).toBe('todo');
+    expect(state.selectedObjectId).toBe('todo-add');
+  });
+
+  it('keeps the Interact mode too', () => {
+    const store = demoStore();
+    store.getState().applyStack(demoStack());
+    expect(store.getState().mode).toBe('interact');
+  });
+
+  it('keeps the current card when it still exists, even if it is not the start card', () => {
+    const store = demoStore();
+    store.getState().followLink('todo-link-about');
+    store.getState().applyStack(demoStack());
+    expect(store.getState().currentCardId).toBe('about');
+  });
+
+  it('goes to the start card when the current card is gone', () => {
+    const store = demoStore();
+    store.getState().followLink('todo-link-about');
+    const base = demoStack();
+    const next: Stack = {
+      ...base,
+      cards: base.cards
+        .filter((card) => card.id !== 'about')
+        .map((card) => ({ ...card, links: card.links.filter((l) => l.targetCardId !== 'about') })),
+    };
+    store.getState().applyStack(next);
+    expect(store.getState().currentCardId).toBe(next.startCardId);
+  });
+
+  it('clears the selection when that object is gone from the current card', () => {
+    const store = demoStore();
+    store.getState().setMode('edit');
+    store.getState().selectObject('todo-list');
+    store.getState().applyStack(withoutList(demoStack()));
+    expect(store.getState().selectedObjectId).toBeNull();
+    expect(store.getState().mode).toBe('edit');
+  });
+
+  it('clears the selection when the card was reset to the start card and the object is not on it', () => {
+    const store = demoStore();
+    store.getState().followLink('todo-link-about');
+    store.getState().setMode('edit');
+    store.getState().selectObject('about-text');
+    const base = demoStack();
+    const next: Stack = {
+      ...base,
+      cards: base.cards
+        .filter((card) => card.id !== 'about')
+        .map((card) => ({ ...card, links: card.links.filter((l) => l.targetCardId !== 'about') })),
+    };
+    store.getState().applyStack(next);
+    expect(store.getState().currentCardId).toBe('todo');
+    expect(store.getState().selectedObjectId).toBeNull();
+  });
+
+  it('clears the status and leaves statusSeq unchanged', () => {
+    const store = demoStore();
+    store.getState().typeInField('todo-input', 'Milk');
+    store.getState().activateButton('todo-add');
+    expect(store.getState().status).not.toBeNull();
+    const seq = store.getState().statusSeq;
+
+    store.getState().applyStack(demoStack());
+    expect(store.getState().status).toBeNull();
+    expect(store.getState().statusSeq).toBe(seq);
+  });
+
+  it('notifies subscribers once, with a new state reference', () => {
+    const store = demoStore();
+    const before = store.getState();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().applyStack(demoStack());
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(store.getState()).not.toBe(before);
+    expect(store.getState().stack).not.toBe(before.stack);
+  });
+
+  it('does not mutate the stack it receives', () => {
+    const input = deepFreeze(demoStack());
+    const snapshot = JSON.stringify(input);
+    const store = demoStore();
+    store.getState().setMode('ai-edit');
+    store.getState().selectObject('todo-add');
+    store.getState().applyStack(input);
+    expect(JSON.stringify(input)).toBe(snapshot);
+    expect(store.getState().stack).toBe(input);
   });
 });

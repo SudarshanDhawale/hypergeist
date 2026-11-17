@@ -7,7 +7,7 @@
  *   section.window.stack-window, direct children:
  *     .title-bar, .canvas-frame, nav.link-bar, div.memory-banner,
  *     div.save-indicator-row,
- *     section.property-readout (Edit mode only), footer.status-bar
+ *     section.property-readout (Edit and AI edit modes), footer.status-bar
  *   .title-bar > h2 (the window title)
  *   .status-bar > .status-card, .status-mode, .status-hint
  *   .load-error (the startup error screen)
@@ -158,7 +158,7 @@
   border-top: var(--border) solid var(--ink);
 }
 
-/* Property readout: labelled read-only region, shown in Edit mode only. */
+/* Property readout: labelled read-only region, shown in Edit and AI edit modes. */
 .property-readout {
   width: var(--readout-w);
   min-height: 0;

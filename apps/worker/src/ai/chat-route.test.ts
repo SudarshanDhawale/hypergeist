@@ -302,6 +302,26 @@ describe('handleChat: origin', () => {
     expectUntouched(h);
   });
 
+  it('answers FORBIDDEN_ORIGIN for a POST without Origin even with Sec-Fetch-Site: same-origin', async () => {
+    const h = setup();
+    const sent = await send(
+      h,
+      chatRequest({ headers: { origin: null, 'sec-fetch-site': 'same-origin' } }),
+    );
+    expectError(sent, 'FORBIDDEN_ORIGIN');
+    expectUntouched(h);
+  });
+
+  it('does not let a stray GET use the no-Origin exception', async () => {
+    const h = setup();
+    const request = new Request('http://localhost:8787/api/ai/chat', {
+      method: 'GET',
+      headers: { 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' },
+    });
+    expectError(await send(h, request), 'FORBIDDEN_ORIGIN');
+    expectUntouched(h);
+  });
+
   it('accepts a request with Sec-Fetch-Site: same-origin', async () => {
     const h = setup();
     const sent = await send(h, chatRequest({ headers: { 'sec-fetch-site': 'same-origin' } }));

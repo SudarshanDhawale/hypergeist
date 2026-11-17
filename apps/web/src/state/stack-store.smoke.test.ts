@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import demoText from '../stacks/thin-slice-todo.json?raw';
 import { loadStack } from '../stacks/load-stack.ts';
-import { EDIT_HINT, INTERACT_HINT } from './hints.ts';
+import { AI_EDIT_HINT, EDIT_HINT, INTERACT_HINT, hintForMode } from './hints.ts';
 import { createStackStore } from './stack-store.ts';
 
 function demoStore() {
@@ -25,9 +25,18 @@ describe('stack store smoke test', () => {
     expect(store.getState().status?.text).toBe('Item added.');
   });
 
-  it('has two different hints that both name Alt+M', () => {
-    expect(INTERACT_HINT).not.toBe(EDIT_HINT);
+  it('has three different hints that all name Alt+M', () => {
+    expect(new Set([INTERACT_HINT, EDIT_HINT, AI_EDIT_HINT]).size).toBe(3);
     expect(INTERACT_HINT).toContain('Alt+M');
     expect(EDIT_HINT).toContain('Alt+M');
+    expect(AI_EDIT_HINT).toBe(
+      'AI edit mode. Click an object, then tell the Ghost what to change. Alt+M switches mode.',
+    );
+  });
+
+  it('hintForMode returns the hint of each mode', () => {
+    expect(hintForMode('interact')).toBe(INTERACT_HINT);
+    expect(hintForMode('edit')).toBe(EDIT_HINT);
+    expect(hintForMode('ai-edit')).toBe(AI_EDIT_HINT);
   });
 });

@@ -7,8 +7,8 @@ import { StackWindow } from './StackWindow.tsx';
 
 /**
  * The desktop grid: menu bar, the Stack_Window, and a right-hand rail with the Ghost.
- * Global keys: Alt+M toggles the Mode, Escape clears the Selection (the store ignores
- * it outside Edit mode).
+ * Global keys: Alt+M cycles the Mode, Escape clears the Selection (the store ignores
+ * it in Interact mode).
  */
 export function Desktop(): JSX.Element {
   const store = useStackStoreApi();

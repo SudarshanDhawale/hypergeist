@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.tsx';
-import { EDIT_HINT, INTERACT_HINT } from './state/hints.ts';
+import { AI_EDIT_HINT, EDIT_HINT, INTERACT_HINT } from './state/hints.ts';
 
 afterEach(() => {
   cleanup();
@@ -15,7 +15,7 @@ function pressAltM(): void {
   });
 }
 
-function chooseMode(label: 'Interact' | 'Edit'): void {
+function chooseMode(label: 'Interact' | 'Edit' | 'AI edit'): void {
   fireEvent.click(screen.getByRole('radio', { name: label }));
 }
 
@@ -100,22 +100,30 @@ describe('App startup with the Demo_Stack', () => {
       within(group)
         .getAllByRole('radio')
         .map((radio) => radio.closest('label')?.textContent),
-    ).toEqual(['Interact', 'Edit']);
+    ).toEqual(['Interact', 'Edit', 'AI edit']);
     expect(screen.getByRole('main')).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Thin slice to-do' })).toBeTruthy();
     expect(screen.getByRole('contentinfo', { name: 'Status' })).toBeTruthy();
   });
 
-  it('toggles the Mode with Alt+M and with the radio control', () => {
+  it('cycles the Mode with Alt+M and sets it with the radio control', () => {
     render(<App />);
     pressAltM();
     expect(screen.getByRole('radio', { name: 'Edit' })).toHaveProperty('checked', true);
     expect(screen.getByText('Mode: Edit')).toBeTruthy();
+    pressAltM();
+    expect(screen.getByRole('radio', { name: 'AI edit' })).toHaveProperty('checked', true);
+    expect(screen.getByText('Mode: AI edit')).toBeTruthy();
+    pressAltM();
+    expect(screen.getByRole('radio', { name: 'Interact' })).toHaveProperty('checked', true);
+    expect(screen.getByText('Mode: Interact')).toBeTruthy();
+    chooseMode('AI edit');
+    expect(screen.getByText('Mode: AI edit')).toBeTruthy();
     chooseMode('Interact');
     expect(screen.getByText('Mode: Interact')).toBeTruthy();
     chooseMode('Edit');
     pressAltM();
-    expect(screen.getByRole('radio', { name: 'Interact' })).toHaveProperty('checked', true);
+    expect(screen.getByRole('radio', { name: 'AI edit' })).toHaveProperty('checked', true);
   });
 
   it('ignores M without Alt', () => {
@@ -136,6 +144,25 @@ describe('App startup with the Demo_Stack', () => {
     expect(editHint).toBe(EDIT_HINT);
     expect(editHint).toContain('Alt+M');
     expect(editHint).not.toBe(interactHint);
+    pressAltM();
+    const aiEditHint = hintText();
+    expect(aiEditHint).toBe(AI_EDIT_HINT);
+    expect(aiEditHint).toContain('Alt+M');
+    expect(aiEditHint).not.toBe(editHint);
+    expect(aiEditHint).not.toBe(interactHint);
+  });
+
+  it('selects an object in AI edit mode and Alt+M leaves it', () => {
+    render(<App />);
+    chooseMode('AI edit');
+    fireEvent.click(screen.getByRole('button', { name: 'Add item (button)' }));
+    expect(isSelected('Add item (button)')).toBe(true);
+    expect(screen.getByLabelText('Properties').textContent).toContain('todo-add');
+    expect(hintText()).toBe(AI_EDIT_HINT);
+    // Alt+M leaves AI edit mode, which ends the Selection.
+    pressAltM();
+    expect(screen.getByText('Mode: Interact')).toBeTruthy();
+    expect(screen.queryByLabelText('Properties')).toBeNull();
   });
 
   it('clears the Selection when the Mode toggles with Alt+M', () => {
@@ -144,6 +171,7 @@ describe('App startup with the Demo_Stack', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add item (button)' }));
     expect(isSelected('Add item (button)')).toBe(true);
     expect(screen.getByText('todo-add')).toBeTruthy();
+    pressAltM();
     pressAltM();
     pressAltM();
     expect(screen.getByRole('radio', { name: 'Edit' })).toHaveProperty('checked', true);
@@ -229,7 +257,9 @@ describe('App startup with the Demo_Stack', () => {
     const { container } = render(<App />);
     chooseMode('Edit');
     const stops = tabStops(container);
-    expect(stops.filter((name) => name === 'Interact' || name === 'Edit')).toEqual(['Edit']);
+    expect(
+      stops.filter((name) => name === 'Interact' || name === 'Edit' || name === 'AI edit'),
+    ).toEqual(['Edit']);
     expect(stops.slice(0, 2)).toEqual(['Edit', 'New item (field)']);
     expect(stops[stops.length - 1]).toBe('About this stack');
   });

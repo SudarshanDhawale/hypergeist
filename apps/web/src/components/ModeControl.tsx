@@ -4,6 +4,7 @@ import { useStackStore } from '../state/StackStoreContext.tsx';
 const OPTIONS = [
   { mode: 'interact', label: 'Interact' },
   { mode: 'edit', label: 'Edit' },
+  { mode: 'ai-edit', label: 'AI edit' },
 ] as const;
 
 /**

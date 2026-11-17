@@ -85,7 +85,9 @@ export function Canvas() {
         {card?.objects.map((object) => (
           <ObjectView key={object.id} object={object} />
         ))}
-        {mode === 'edit' && selected !== undefined ? <SelectionOverlay object={selected} /> : null}
+        {mode !== 'interact' && selected !== undefined ? (
+          <SelectionOverlay object={selected} />
+        ) : null}
       </div>
     </div>
   );

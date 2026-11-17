@@ -11,7 +11,7 @@ import { StatusBar } from './StatusBar.tsx';
 /**
  * The one window of the slice, named by its title bar. There is no close or expand
  * box because there is nothing to close or expand. The not-saved notice shows on
- * every Card (Requirement 18.3). The Property_Readout renders itself in Edit mode only.
+ * every Card (Requirement 18.3). The Property_Readout renders itself in Edit and AI edit modes.
  */
 export function StackWindow(): JSX.Element {
   const titleId = useId();

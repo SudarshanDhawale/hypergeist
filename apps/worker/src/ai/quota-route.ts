@@ -52,7 +52,7 @@ async function run(request: Request, env: Record<string, unknown>, deps: Deps): 
   }
   const config = parsed.config;
 
-  if (!checkOrigin(request.headers, config.origins)) {
+  if (!checkOrigin(request.headers, config.origins, request.method)) {
     return fail('FORBIDDEN_ORIGIN');
   }
 

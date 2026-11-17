@@ -4,7 +4,7 @@ import { executeHandler } from '@hypergeist/shared/engine';
 import type { EffectRequest, ExecutionResult } from '@hypergeist/shared/engine';
 import type { Card, Stack } from '@hypergeist/shared/format';
 
-export type Mode = 'interact' | 'edit';
+export type Mode = 'interact' | 'edit' | 'ai-edit';
 
 /** A message shown in the Hint_Line. `seq` is unique per message, so a stale timer can be told apart. */
 export type StatusMessage = { readonly text: string; readonly seq: number };
@@ -23,11 +23,11 @@ export type StackState = {
 export type StackActions = {
   /** Sets the Mode and clears Selection and status. */
   setMode(mode: Mode): void;
-  /** Alt+M. */
+  /** Alt+M. Cycles Interact, Edit, AI edit, Interact. */
   toggleMode(): void;
-  /** Edit mode only. No-op for an id that is not an Object on the current Card. */
+  /** Edit and AI edit modes. No-op for an id that is not an Object on the current Card. */
   selectObject(id: string): void;
-  /** Escape in Edit mode. */
+  /** Escape in Edit and AI edit modes. */
   clearSelection(): void;
   /** Interact mode only. Runs the `onClick` Handler of the Button. */
   activateButton(id: string): void;
@@ -43,10 +43,22 @@ export type StackActions = {
    * an earlier message cannot clear a later one.
    */
   replaceStack(stack: Stack): void;
+  /**
+   * Swaps in a changed version of the open Stack (an AI Turn or Undo). Keeps the Mode and the
+   * current Card (the start Card when that Card is gone) and keeps the Selection only while that
+   * Object is still on the current Card. Clears the status; `statusSeq` is not touched.
+   */
+  applyStack(stack: Stack): void;
 };
 
 export type StackStore = StackState & StackActions;
 export type StackStoreApi = StoreApi<StackStore>;
+
+const NEXT_MODE: Readonly<Record<Mode, Mode>> = {
+  interact: 'edit',
+  edit: 'ai-edit',
+  'ai-edit': 'interact',
+};
 
 function currentCard(state: StackState): Card | undefined {
   return state.stack.cards.find((card) => card.id === state.currentCardId);
@@ -98,19 +110,19 @@ export function createStackStore(stack: Stack): StackStoreApi {
     },
 
     toggleMode() {
-      get().setMode(get().mode === 'interact' ? 'edit' : 'interact');
+      get().setMode(NEXT_MODE[get().mode]);
     },
 
     selectObject(id) {
       const state = get();
-      if (state.mode !== 'edit') return;
+      if (state.mode === 'interact') return;
       const card = currentCard(state);
       if (card === undefined || !card.objects.some((object) => object.id === id)) return;
       set({ selectedObjectId: id });
     },
 
     clearSelection() {
-      if (get().mode !== 'edit') return;
+      if (get().mode === 'interact') return;
       set({ selectedObjectId: null });
     },
 
@@ -153,6 +165,23 @@ export function createStackStore(stack: Stack): StackStoreApi {
         currentCardId: stack.startCardId,
         mode: 'interact',
         selectedObjectId: null,
+        status: null,
+      });
+    },
+
+    applyStack(stack) {
+      const state = get();
+      const keepCard = stack.cards.some((card) => card.id === state.currentCardId);
+      const currentCardId = keepCard ? state.currentCardId : stack.startCardId;
+      const card = stack.cards.find((candidate) => candidate.id === currentCardId);
+      const keepSelection =
+        state.selectedObjectId !== null &&
+        card !== undefined &&
+        card.objects.some((object) => object.id === state.selectedObjectId);
+      set({
+        stack,
+        currentCardId,
+        selectedObjectId: keepSelection ? state.selectedObjectId : null,
         status: null,
       });
     },

@@ -5,7 +5,7 @@ import { objectCssVars } from '../lib/css-vars.ts';
 import { useStackStore } from '../state/StackStoreContext.tsx';
 
 /**
- * The control of an Object. With `preview` set it is inert display only (Edit mode):
+ * The control of an Object. With `preview` set it is inert display only (Edit and AI edit modes):
  * Fields are read-only with no change handler and Buttons run nothing.
  */
 function ObjectControl({
@@ -100,7 +100,7 @@ function ObjectControl({
  * One Object on the Canvas.
  *
  * Interact mode: the native control sits directly in the positioned wrapper.
- * Edit mode: the wrapper is a focusable button that selects the Object, and the
+ * Edit and AI edit modes: the wrapper is a focusable button that selects the Object, and the
  * control inside it is an inert preview, so typing and Handlers cannot run.
  */
 export function ObjectView({ object }: { readonly object: StackObject }) {

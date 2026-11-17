@@ -33,13 +33,22 @@ describe('Desktop smoke test', () => {
     expect(screen.getByRole('radio', { name: 'Interact' })).toHaveProperty('checked', true);
   });
 
-  it('switches mode with the radios and with Alt+M', () => {
+  it('switches mode with the radios and cycles it with Alt+M', () => {
     renderDesktop();
+    const pressAltM = () =>
+      act(() => {
+        fireEvent.keyDown(document, { code: 'KeyM', key: 'm', altKey: true });
+      });
+    expect(
+      screen.getAllByRole('radio').map((radio) => radio.closest('label')?.textContent),
+    ).toEqual(['Interact', 'Edit', 'AI edit']);
     fireEvent.click(screen.getByRole('radio', { name: 'Edit' }));
     expect(screen.getByRole('radio', { name: 'Edit' })).toHaveProperty('checked', true);
-    act(() => {
-      fireEvent.keyDown(document, { code: 'KeyM', key: 'm', altKey: true });
-    });
+    pressAltM();
+    expect(screen.getByRole('radio', { name: 'AI edit' })).toHaveProperty('checked', true);
+    pressAltM();
     expect(screen.getByRole('radio', { name: 'Interact' })).toHaveProperty('checked', true);
+    pressAltM();
+    expect(screen.getByRole('radio', { name: 'Edit' })).toHaveProperty('checked', true);
   });
 });

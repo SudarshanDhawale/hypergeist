@@ -81,12 +81,12 @@ Each cap value is a whole number from 1 to 10,000,000. `AI_ALLOWED_ORIGINS` entr
 
    The Worker serves the last built copy of the web app, so run `pnpm build` first if `apps/web/dist` is missing.
 
-4. In a second terminal, call it. The Worker requires an `Origin` header, so `curl` must send one:
+4. In a second terminal, call it. Chat needs an `Origin` header. Quota needs either an `Origin` or, as a browser does for a same-origin `GET`, `Sec-Fetch-Site: same-origin` with no `Origin`. `curl` sends neither, so add them:
 
    ```sh
    curl -i http://localhost:8787/api/health
 
-   curl -i -H 'Origin: http://localhost:8787' http://localhost:8787/api/ai/quota
+   curl -i -H 'Sec-Fetch-Site: same-origin' http://localhost:8787/api/ai/quota
 
    curl -i http://localhost:8787/api/ai/chat \
      -H 'Origin: http://localhost:8787' \
@@ -195,14 +195,14 @@ This applies the new `vars`. (Secrets from `wrangler secret put` already apply.)
 
 ## 7. Smoke tests on the deployed URL
 
-With `APP` set as in section 3. The `Origin` header must be exactly the deployed URL.
+With `APP` set as in section 3. For chat, the `Origin` header must be exactly the deployed URL. For quota, the example sends what a browser sends for a same-origin `GET`: no `Origin`, and `Sec-Fetch-Site: same-origin`. A script can forge both headers (section 13).
 
 ```sh
 # 1. Health
 curl -i $APP/api/health
 
 # 2. Quota
-curl -i -H "Origin: $APP" $APP/api/ai/quota
+curl -i -H 'Sec-Fetch-Site: same-origin' $APP/api/ai/quota
 
 # 3. Chat
 curl -i $APP/api/ai/chat \
@@ -226,17 +226,17 @@ Then work through `docs/manual-verification-worker.md`.
 
 Every error answer has the body `{"error":{"code":"<CODE>"}}` and nothing else:
 
-| Status | Code                | When                                                                                           |
-| ------ | ------------------- | ---------------------------------------------------------------------------------------------- |
-| 400    | `BAD_REQUEST`       | Not JSON, wrong content type, unknown field, schema limit broken.                              |
-| 400    | `MODEL_NOT_ALLOWED` | `model` is not `auto` and not in `AI_ALLOWED_MODELS`.                                          |
-| 403    | `FORBIDDEN_ORIGIN`  | `Origin` missing or not allowed, or `Sec-Fetch-Site` is not `same-origin`.                     |
-| 413    | `PAYLOAD_TOO_LARGE` | Body over 128 KB (131,072 bytes).                                                              |
-| 429    | `RATE_LIMITED`      | More than 10 requests in 60 seconds. `Retry-After: 60`.                                        |
-| 429    | `DAILY_CAP`         | A visitor, daily, token or lifetime cap is reached. `Retry-After` is the seconds to 00:00 UTC. |
-| 503    | `AI_DISABLED`       | Kill switch, bad configuration, or a missing key, model or salt.                               |
-| 503    | `UPSTREAM_FAILED`   | Provider failed or refused, or the limiter or counter store was unavailable (fail closed).     |
-| 500    | `INTERNAL`          | Unexpected error inside the Worker.                                                            |
+| Status | Code                | When                                                                                                                           |
+| ------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 400    | `BAD_REQUEST`       | Not JSON, wrong content type, unknown field, schema limit broken.                                                              |
+| 400    | `MODEL_NOT_ALLOWED` | `model` is not `auto` and not in `AI_ALLOWED_MODELS`.                                                                          |
+| 403    | `FORBIDDEN_ORIGIN`  | `Origin` missing or not allowed (except a same-origin `GET`/`HEAD`, see section 13), or `Sec-Fetch-Site` is not `same-origin`. |
+| 413    | `PAYLOAD_TOO_LARGE` | Body over 128 KB (131,072 bytes).                                                                                              |
+| 429    | `RATE_LIMITED`      | More than 10 requests in 60 seconds. `Retry-After: 60`.                                                                        |
+| 429    | `DAILY_CAP`         | A visitor, daily, token or lifetime cap is reached. `Retry-After` is the seconds to 00:00 UTC.                                 |
+| 503    | `AI_DISABLED`       | Kill switch, bad configuration, or a missing key, model or salt.                                                               |
+| 503    | `UPSTREAM_FAILED`   | Provider failed or refused, or the limiter or counter store was unavailable (fail closed).                                     |
+| 500    | `INTERNAL`          | Unexpected error inside the Worker.                                                                                            |
 
 Any other method or path under `/api/ai/` answers `404` with `{"error":"Not found"}`.
 
@@ -376,9 +376,10 @@ What changes for OpenAI requests: the Worker sends `max_completion_tokens` inste
 
 - The browser adds `Origin` itself, and a page cannot change it. The Worker accepts only the exact origins in `AI_ALLOWED_ORIGINS`.
 - If the browser sends `Sec-Fetch-Site`, it must be `same-origin`.
+- A browser sends no `Origin` on a same-origin `GET` or `HEAD`. For those two methods only (the quota route), a request with no `Origin` passes when `Sec-Fetch-Site` is present and equals `same-origin`. A `POST` (the chat route) always needs a matching `Origin`. With no `Origin` and no `Sec-Fetch-Site`, every method is refused.
 - The Worker sends no `access-control-*` header. A browser blocks a cross-origin page from reading the answer. A JSON request from another origin also needs a preflight, which the Worker answers with `404`.
 
-**It does not stop** a script. Anyone can run `curl` with `-H 'Origin: <your URL>'`. Your URL is public. The check cannot tell a script from your app.
+**It does not stop** a script. Anyone can run `curl` with `-H 'Origin: <your URL>'`, or for quota with `-H 'Sec-Fetch-Site: same-origin'`. Your URL is public. The check cannot tell a script from your app.
 
 What does limit a script:
 

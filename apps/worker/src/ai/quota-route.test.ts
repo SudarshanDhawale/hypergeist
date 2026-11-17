@@ -309,6 +309,49 @@ describe('handleQuota: denials', () => {
     expect(h.snapshot).not.toHaveBeenCalled();
   });
 
+  it('answers 200 to a GET without Origin and with Sec-Fetch-Site: same-origin', async () => {
+    // This is what a browser sends for a same-origin GET.
+    const h = harness();
+    const request = new Request('https://hypergeist.example/api/ai/quota', {
+      method: 'GET',
+      headers: { 'sec-fetch-site': 'same-origin', 'cf-connecting-ip': IP },
+    });
+    const response = await handleQuota(request, ENV, h.deps);
+    expect(response.status).toBe(200);
+  });
+
+  it('answers 200 to a HEAD without Origin and with Sec-Fetch-Site: same-origin', async () => {
+    const h = harness();
+    const request = new Request('https://hypergeist.example/api/ai/quota', {
+      method: 'HEAD',
+      headers: { 'sec-fetch-site': 'same-origin', 'cf-connecting-ip': IP },
+    });
+    const response = await handleQuota(request, ENV, h.deps);
+    expect(response.status).toBe(200);
+  });
+
+  it('answers FORBIDDEN_ORIGIN for a cross-site GET without Origin', async () => {
+    const h = harness();
+    const request = new Request('https://hypergeist.example/api/ai/quota', {
+      method: 'GET',
+      headers: { 'sec-fetch-site': 'cross-site', 'cf-connecting-ip': IP },
+    });
+    const response = await handleQuota(request, ENV, h.deps);
+    expect(response.status).toBe(403);
+    expect(await errorCode(response)).toBe('FORBIDDEN_ORIGIN');
+  });
+
+  it('answers FORBIDDEN_ORIGIN for a wrong Origin even with Sec-Fetch-Site: same-origin', async () => {
+    const h = harness();
+    const response = await handleQuota(
+      quotaRequest({ origin: 'https://evil.example', 'sec-fetch-site': 'same-origin' }),
+      ENV,
+      h.deps,
+    );
+    expect(response.status).toBe(403);
+    expect(await errorCode(response)).toBe('FORBIDDEN_ORIGIN');
+  });
+
   it('answers RATE_LIMITED with Retry-After 60 when the burst limiter says no', async () => {
     const limit = vi.fn(() => Promise.resolve({ success: false }));
     const h = harness({ limiter: { limit } });

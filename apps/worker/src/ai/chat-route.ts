@@ -146,7 +146,9 @@ async function runPipeline(
   if (!parsedConfig.ok || !parsedConfig.config.enabled) return reject('AI_DISABLED');
   const config = parsedConfig.config;
 
-  if (!checkOrigin(request.headers, config.origins)) return reject('FORBIDDEN_ORIGIN');
+  // The chat route is POST only. The method is fixed here, not read from the request, so a stray
+  // GET can never use the no-Origin exception that `checkOrigin` allows for same-origin GET/HEAD.
+  if (!checkOrigin(request.headers, config.origins, 'POST')) return reject('FORBIDDEN_ORIGIN');
 
   if (!isJsonContentType(request.headers.get('content-type'))) return reject('BAD_REQUEST');
 
