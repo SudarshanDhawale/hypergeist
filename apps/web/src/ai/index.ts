@@ -15,6 +15,11 @@ export type { ChooseChainResult, FallbackInfo, FallbackTurnResult } from './fall
 // Text completion for ai-field objects
 export { completeText } from './complete-text.ts';
 export type { CompleteTextResult } from './complete-text.ts';
+export { completeTextWithFallback } from './complete-text-fallback.ts';
+export type {
+  CompleteTextFallbackArgs,
+  CompleteTextFallbackResult,
+} from './complete-text-fallback.ts';
 
 // New stacks
 export { pickNewStackId, startNewStack } from './new-stack.ts';

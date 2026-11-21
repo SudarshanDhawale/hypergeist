@@ -46,6 +46,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'buildToolRegistry',
   'chooseProviderChain',
   'completeText',
+  'completeTextWithFallback',
   'createCapabilityCache',
   'createDirectProvider',
   'createKeyHolder',

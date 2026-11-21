@@ -129,6 +129,42 @@
   border-style: dashed;
 }
 
+.ai-field-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* While a run is in progress the field gets a dithered frame and a "Thinking..." label.
+   The text carries the meaning; the frame only helps the eye. */
+.ai-field-box.ai-active {
+  padding: var(--space-1);
+  background: var(--paper) var(--dither-50);
+}
+
+.ai-thinking {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  padding: 0 var(--space-1);
+  font-size: var(--fs-12);
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--border-thin) solid var(--ink);
+  pointer-events: none;
+}
+
+/* Visually hidden live region for "AI field <name> updated". */
+.ai-live {
+  position: absolute;
+  width: var(--border-thin);
+  height: var(--border-thin);
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 /* Edit and AI edit modes: objects are previews. Clicks reach the wrapper only. */
 .object-preview {
   pointer-events: none;

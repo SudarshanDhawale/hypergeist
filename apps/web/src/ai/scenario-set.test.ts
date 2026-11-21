@@ -103,10 +103,22 @@ describe('loadScenarios with the bundled files', () => {
   it('ships the scenarios of this spec, in file name order', () => {
     expect(set.scenarios.map((s) => s.id)).toEqual([
       'add-a-button',
+      'smart-todo-when-guess',
+      'study-deck-flashcards',
+      'study-deck-quiz',
+      'study-deck-walkthrough',
       'summarize-text',
       'todo-from-a-sentence',
     ]);
-    expect(set.scenarios.map((s) => s.mode)).toEqual(['edit', 'text', 'new-stack']);
+    expect(set.scenarios.map((s) => s.mode)).toEqual([
+      'edit',
+      'text',
+      'text',
+      'text',
+      'text',
+      'text',
+      'new-stack',
+    ]);
   });
 
   it('has unique ids and unique normalized prompts', () => {

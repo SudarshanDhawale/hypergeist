@@ -50,6 +50,7 @@ button[aria-disabled='true'] {
 
 /* Text fields: 2px border, thick left bar on focus, block caret. */
 input[type='text'],
+input[type='password'],
 textarea {
   min-width: var(--hit-min);
   min-height: var(--hit-min);
@@ -65,13 +66,76 @@ textarea {
 }
 
 input[type='text']:focus,
+input[type='password']:focus,
 textarea:focus {
   box-shadow: inset calc(2 * var(--border)) 0 0 var(--ink);
 }
 
 input[type='text']:disabled,
+input[type='password']:disabled,
 textarea:disabled {
   border-style: dashed;
+}
+
+/* AI settings dialog: plain labelled fields stacked in one column. */
+.ai-settings {
+  width: calc(32 * var(--space-4));
+}
+
+.ai-settings-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2);
+  border: var(--border) solid var(--ink);
+}
+
+.ai-settings-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--hit-min);
+}
+
+.ai-settings-option input[type='radio'] {
+  flex: none;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.ai-settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ai-settings-fields p,
+.ai-settings-results p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-settings-messages {
+  margin: 0;
+  padding-left: var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+/* An error has a double border, so color is never the only signal. */
+.ai-settings-error {
+  padding: var(--space-1) var(--space-2);
+  border: calc(2 * var(--border)) double var(--ink);
+}
+
+.demo-counter {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit-min);
+  font-family: var(--font-mono);
 }
 
 /* Lists scroll inside their bounds and are reachable by keyboard. */
@@ -137,4 +201,19 @@ ol {
 
 .mode-option input:hover:not(:checked) + span {
   text-decoration: underline;
+}
+
+/* Reminders window: the state is text, and Cancel or Dismiss sits under each reminder. */
+.reminders-state {
+  padding: 0 var(--space-1);
+  border: var(--border-thin) solid var(--ink);
+}
+
+.reminders-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.reminder-notice button {
+  flex: none;
 }

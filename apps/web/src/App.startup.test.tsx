@@ -205,16 +205,19 @@ describe('App startup with the Demo_Stack', () => {
     expect(hintText()).toBe('Item added.');
   });
 
-  it('puts the Ghost window in the rail with its accessible name and no interactive element', () => {
+  // `App` alone has no AI provider (AppRoot adds it, see AppRoot.ai.test.tsx for the chat panel),
+  // so the Ghost shows the no-AI fallback.
+  it('puts the Ghost fallback window in the rail when no AI provider is wired', () => {
     const { container } = render(<App />);
     const ghost = screen.getByRole('complementary', {
-      name: 'Ghost is asleep. AI arrives in a later release.',
+      name: 'Ghost is asleep. AI is not available.',
     });
     expect(container.querySelector('.rail')?.contains(ghost)).toBe(true);
     expect(
       ghost.querySelector('button, a, input, textarea, select, [tabindex], [contenteditable]'),
     ).toBeNull();
-    expect(within(ghost).getByText('AI arrives in a later release')).toBeTruthy();
+    expect(within(ghost).getByText('AI is not available in this build')).toBeTruthy();
+    expect(container.textContent).not.toContain('AI arrives in a later release');
   });
 
   it('shows no not-saved notice on the three Cards, and the Limits card states the real limits', () => {
@@ -238,6 +241,10 @@ describe('App startup with the Demo_Stack', () => {
     expect(limits).toContain('The last save wins');
     expect(limits).toContain('can lose the last second');
     expect(limits).toContain('The open card and the mode are not saved');
+    expect(limits).toContain('AI fields use the shared demo model or an example answer');
+    expect(limits).toContain('One run counts against the demo limit');
+    expect(limits).toContain('Reminders fire only while HyperGeist is open or installed');
+    expect(limits).toContain('A missed reminder is shown when you return');
   });
 
   it('orders Tab stops as Mode_Control, Objects, then Links on each Card', () => {

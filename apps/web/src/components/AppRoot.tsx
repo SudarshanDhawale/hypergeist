@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { JSX, MutableRefObject } from 'react';
+import type { JSX, MutableRefObject, ReactNode } from 'react';
 import type { Stack } from '@hypergeist/shared/format';
+import { createKeyHolder, createSettingsRepository, loadScenarios } from '../ai/index.ts';
+import type { Scenario } from '../ai/index.ts';
 import { downloadText } from '../lib/download-text.ts';
 import { createAutosave } from '../persistence/autosave.ts';
 import type { Autosave } from '../persistence/autosave.ts';
@@ -10,6 +12,12 @@ import { exportStack } from '../persistence/export-stack.ts';
 import { loadSeedSet } from '../persistence/seed-set.ts';
 import type { SeedSet } from '../persistence/seed-set.ts';
 import type { Repository } from '../persistence/types.ts';
+import { openReminderRepository } from '../reminders/open-reminder-repository.ts';
+import type { ReminderRepository } from '../reminders/types.ts';
+import { createAiController } from '../state/ai-controller.ts';
+import type { AiController, SettingsRepository } from '../state/ai-controller.ts';
+import { createAiStore } from '../state/ai-store.ts';
+import { AiProvider } from '../state/AiContext.tsx';
 import { PersistenceProvider } from '../state/PersistenceContext.tsx';
 import { createSaveStateStore } from '../state/save-state-store.ts';
 import type { SaveStateStoreApi } from '../state/save-state-store.ts';
@@ -17,6 +25,8 @@ import { SaveStateProvider } from '../state/SaveStateContext.tsx';
 import { StackStoreProvider, useStackStoreApi } from '../state/StackStoreContext.tsx';
 import type { StackStoreApi } from '../state/stack-store.ts';
 import { Desktop } from './Desktop.tsx';
+import { EffectsRoot } from './EffectsRoot.tsx';
+import type { EffectsParts } from './EffectsRoot.tsx';
 
 export type AppRootProps = {
   /** Opens the repository and picks the first stack. Defaults to `bootPersistence`. */
@@ -25,6 +35,14 @@ export type AppRootProps = {
   readonly now?: () => number;
   /** The demo stacks. Defaults to the bundled files. */
   readonly seedSet?: SeedSet;
+  /** The network call of the AI. Defaults to the global `fetch`, looked up at call time. */
+  readonly fetch?: typeof fetch;
+  /** The recorded demo scenarios. Defaults to the bundled files. */
+  readonly scenarios?: readonly Scenario[];
+  /** Where the AI settings are stored. Defaults to the IndexedDB repository. */
+  readonly settingsRepository?: SettingsRepository;
+  /** Where reminders are stored. Defaults to the IndexedDB repository, opened on first use. */
+  readonly reminderRepository?: ReminderRepository;
 };
 
 type Phase =
@@ -45,8 +63,21 @@ export function AppRoot({
   boot = bootPersistence,
   now = Date.now,
   seedSet,
+  fetch: fetchProp,
+  scenarios,
+  settingsRepository,
+  reminderRepository,
 }: AppRootProps): JSX.Element {
   const [seeds] = useState(() => seedSet ?? loadSeedSet());
+  // Created once per mount. The key holder is memory only and never reaches the repository.
+  const [ai] = useState<AiParts>(() => ({
+    aiStore: createAiStore(),
+    keyHolder: createKeyHolder(),
+    settingsRepo: settingsRepository ?? createSettingsRepository(),
+    scenarios: scenarios ?? loadScenarios().scenarios,
+    fetch: fetchProp ?? ((input, init) => globalThis.fetch(input, init)),
+    reminderRepo: reminderRepository ?? createLazyReminderRepository(),
+  }));
   const [phase, setPhase] = useState<Phase>({ kind: 'booting' });
   // The boot runs once, even if the effect runs twice (StrictMode).
   const bootPromise = useRef<Promise<BootResult> | null>(null);
@@ -85,7 +116,63 @@ export function AppRoot({
       </p>
     );
   }
-  return <ReadyApp booted={phase.booted} seeds={seeds} clock={clock} />;
+  return <ReadyApp booted={phase.booted} seeds={seeds} clock={clock} ai={ai} />;
+}
+
+/**
+ * What `AppRoot` creates once for the AI and the effects. The controller and the effects runtime
+ * need the stack store, so `AiRoot` and `EffectsRoot` make them.
+ */
+type AiParts = EffectsParts & {
+  readonly settingsRepo: SettingsRepository;
+};
+
+/**
+ * A reminder repository that opens the real one (IndexedDB, or memory when that is not possible)
+ * on first use, once. Creating it does no work. `openReminderRepository` never rejects.
+ */
+function createLazyReminderRepository(): ReminderRepository {
+  let opened: Promise<ReminderRepository> | null = null;
+  const open = (): Promise<ReminderRepository> => {
+    opened ??= openReminderRepository().then((result) => result.repository);
+    return opened;
+  };
+  return {
+    list: async () => (await open()).list(),
+    put: async (reminder) => (await open()).put(reminder),
+    remove: async (id) => (await open()).remove(id),
+  };
+}
+
+/**
+ * Creates the AI controller once, over the stack store of this app, starts it, and provides it.
+ * It must live inside `StackStoreProvider`.
+ */
+function AiRoot({
+  ai,
+  clock,
+  children,
+}: {
+  readonly ai: AiParts;
+  readonly clock: () => number;
+  readonly children: ReactNode;
+}): JSX.Element {
+  const stackStore = useStackStoreApi();
+  const [controller] = useState<AiController>(() =>
+    createAiController({ ...ai, stackStore, now: clock }),
+  );
+  const started = useRef(false);
+  useEffect(() => {
+    // Once, even if the effect runs twice (StrictMode).
+    if (started.current) return;
+    started.current = true;
+    void controller.init();
+  }, [controller]);
+  return (
+    <AiProvider controller={controller} store={ai.aiStore}>
+      {children}
+    </AiProvider>
+  );
 }
 
 /**
@@ -98,10 +185,12 @@ function ReadyApp({
   booted,
   seeds,
   clock,
+  ai,
 }: {
   readonly booted: BootResult;
   readonly seeds: SeedSet;
   readonly clock: () => number;
+  readonly ai: AiParts;
 }): JSX.Element {
   const { repository, mode } = booted;
   const [saveStore] = useState(createSaveStateStore);
@@ -150,15 +239,19 @@ function ReadyApp({
         beforeAction={beforeAction}
       >
         <StackStoreProvider stack={booted.initial}>
-          <OpenStackBridge
-            open={open}
-            repository={repository}
-            clock={clock}
-            saveStore={saveStore}
-            stackStoreRef={stackStoreRef}
-            autosaveRef={autosaveRef}
-          />
-          <Desktop />
+          <AiRoot ai={ai} clock={clock}>
+            <EffectsRoot parts={ai} clock={clock}>
+              <OpenStackBridge
+                open={open}
+                repository={repository}
+                clock={clock}
+                saveStore={saveStore}
+                stackStoreRef={stackStoreRef}
+                autosaveRef={autosaveRef}
+              />
+              <Desktop />
+            </EffectsRoot>
+          </AiRoot>
         </StackStoreProvider>
       </PersistenceProvider>
       {exportError === null ? null : (

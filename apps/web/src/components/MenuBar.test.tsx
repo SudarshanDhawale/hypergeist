@@ -3,6 +3,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createStack } from '@hypergeist/shared/engine';
 import type { Stack } from '@hypergeist/shared/format';
 import { createMemoryRepository } from '../persistence/memory-repository.ts';
+import type { AiController } from '../state/ai-controller.ts';
+import { createAiStore } from '../state/ai-store.ts';
+import { AiProvider } from '../state/AiContext.tsx';
+import { createEffectsStore } from '../state/effects-store.ts';
+import { EffectsProvider } from '../state/EffectsContext.tsx';
 import { PersistenceProvider } from '../state/PersistenceContext.tsx';
 import { StackStoreProvider } from '../state/StackStoreContext.tsx';
 import { MenuBar } from './MenuBar.tsx';
@@ -77,10 +82,91 @@ describe('MenuBar Stacks button', () => {
     expect(document.activeElement).toBe(button);
   });
 
+  it('has no AI settings button or counter without an AiProvider', () => {
+    renderBar(true);
+    expect(screen.queryByRole('button', { name: 'AI settings' })).toBeNull();
+    expect(screen.queryByText(/Demo:/u)).toBeNull();
+  });
+
+  it('with an AiProvider: opens AI settings, shows the counter, Escape returns focus', async () => {
+    const store = createAiStore();
+    store.getState().setQuota({ remaining: 4 });
+    const controller = { init: () => Promise.resolve() } as unknown as AiController;
+    render(
+      <AiProvider controller={controller} store={store}>
+        <StackStoreProvider stack={STACK}>
+          <MenuBar />
+        </StackStoreProvider>
+      </AiProvider>,
+    );
+    expect(screen.getByText('Demo: 4 left today')).toBeTruthy();
+    const button = screen.getByRole('button', { name: 'AI settings' });
+    button.focus();
+    fireEvent.click(button);
+    const dialog = await screen.findByRole('dialog', { name: 'AI settings' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(button);
+  });
+
   it('keeps the Stacks button and the mode control in the menu bar', () => {
     const { container } = renderBar(true);
     const bar = container.querySelector('header.menu-bar');
     expect(bar?.querySelector('.mode-control')).not.toBeNull();
     expect(bar?.querySelector('button')?.textContent).toBe('Stacks');
+  });
+});
+
+describe('MenuBar Reminders button', () => {
+  it('is absent without an EffectsProvider', () => {
+    renderBar(true);
+    expect(screen.queryByRole('button', { name: /^Reminders/u })).toBeNull();
+  });
+
+  it('with an EffectsProvider: shows the count, opens the window, Escape returns focus', async () => {
+    const store = createEffectsStore();
+    store.getState().setReminders([
+      {
+        id: 'r1',
+        stackId: 'one',
+        message: 'Call Sam',
+        dueAt: 5_000_000,
+        createdAt: 1,
+        state: 'pending',
+      },
+    ]);
+    render(
+      <EffectsProvider store={store}>
+        <StackStoreProvider stack={STACK}>
+          <MenuBar />
+        </StackStoreProvider>
+      </EffectsProvider>,
+    );
+    const button = screen.getByRole('button', { name: 'Reminders (1)' });
+    button.focus();
+    fireEvent.click(button);
+    const dialog = await screen.findByRole('dialog', { name: 'Reminders' });
+    expect(screen.getByText('Call Sam')).toBeTruthy();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('sits right after the AI settings button', () => {
+    const aiStore = createAiStore();
+    const controller = { init: () => Promise.resolve() } as unknown as AiController;
+    const { container } = render(
+      <AiProvider controller={controller} store={aiStore}>
+        <EffectsProvider store={createEffectsStore()}>
+          <StackStoreProvider stack={STACK}>
+            <MenuBar />
+          </StackStoreProvider>
+        </EffectsProvider>
+      </AiProvider>,
+    );
+    const names = Array.from(container.querySelectorAll('header.menu-bar > button')).map(
+      (button) => button.textContent,
+    );
+    expect(names).toEqual(['AI settings', 'Reminders (0)']);
   });
 });

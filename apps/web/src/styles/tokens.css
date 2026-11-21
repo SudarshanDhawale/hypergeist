@@ -34,7 +34,15 @@
   /* Layout. */
   --rail-w: calc(224 * var(--px));
   --readout-w: calc(224 * var(--px));
+  --tools-w: calc(224 * var(--px));
   --handle-size: calc(6 * var(--px));
+  --handle-hit: calc(24 * var(--px));
+  --edge-hit: calc(12 * var(--px));
+  --card-bar-w: calc(112 * var(--px));
+  --chat-w: calc(320 * var(--px));
+  --chat-h: calc(440 * var(--px));
+  --dock-size: calc(48 * var(--px));
+  --dock-gap: calc(8 * var(--px));
   --icon-size: calc(16 * var(--px));
   --sprite-size: calc(48 * var(--px));
   --space-1: calc(4 * var(--px));

@@ -371,6 +371,35 @@
   justify-content: space-between;
 }
 
+/* "Make a stack with the Ghost" section of the Stacks window. */
+.make-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.make-stack-form,
+.make-stack-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.make-stack-label {
+  flex: 1 0 100%;
+  font-size: var(--fs-12);
+}
+
+.make-stack-input {
+  flex: 1 1 calc(12 * var(--space-4));
+  min-width: 0;
+}
+
+.make-stack-status:empty {
+  display: none;
+}
+
 /* Start-up text, shown on paper while the stacks open. */
 .app-loading {
   padding: var(--space-4);
@@ -387,4 +416,70 @@
   align-items: center;
   gap: var(--space-2);
   background: var(--paper);
+}
+
+/* Reminders window: a list of boxed items, newest due time last. */
+.reminders-window {
+  width: calc(32 * var(--space-4));
+}
+
+.reminders-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.reminders-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: var(--border) solid var(--ink);
+}
+
+.reminders-message {
+  overflow-wrap: anywhere;
+}
+
+.reminders-meta {
+  font-size: var(--fs-12);
+}
+
+.reminders-limit {
+  font-size: var(--fs-12);
+}
+
+/*
+ * In-app reminder notices, fixed at the bottom left above the dialog scrim so a due reminder is
+ * never hidden. The live region itself takes no space and no clicks; only the notices do.
+ */
+.reminder-notices {
+  position: fixed;
+  bottom: var(--space-3);
+  left: var(--space-3);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: calc(100% - 2 * var(--space-3));
+  pointer-events: none;
+}
+
+.reminder-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  pointer-events: auto;
+  color: var(--ink);
+  background: var(--paper);
+  border: calc(2 * var(--border)) double var(--ink);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
+}
+
+.reminder-notice p {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

@@ -3,7 +3,8 @@ import * as engine from '@hypergeist/shared/engine';
 import type { Handler, Stack } from '@hypergeist/shared/format';
 import demoText from '../stacks/thin-slice-todo.json?raw';
 import { loadStack } from '../stacks/load-stack.ts';
-import { createStackStore } from './stack-store.ts';
+import { createStackStore, lastEntrySource } from './stack-store.ts';
+import type { EffectsHandler } from './stack-store.ts';
 
 // Wrap the real executor in a spy so the tests can see when the store calls it.
 vi.mock('@hypergeist/shared/engine', async (importOriginal) => {
@@ -675,6 +676,242 @@ describe('Actions that need the outside world', () => {
       'Skipped action 1 (run_ai_field): AI fields arrives in a later release.',
     );
   });
+
+  describe('with an effects handler attached', () => {
+    const aiAction: Handler[number] = { type: 'run_ai_field', targetObjectId: 'todo-ai' };
+    const remindAction: Handler[number] = {
+      type: 'schedule_notification',
+      message: 'Ping',
+      at: '2026-12-01T09:00:00Z',
+    };
+    const newsAction: Handler[number] = {
+      type: 'fetch_news',
+      targetObjectId: 'todo-list',
+      topics: ['tech'],
+    };
+    const voiceAction: Handler[number] = {
+      type: 'transcribe_audio',
+      targetObjectId: 'todo-input',
+    };
+
+    it('calls the handler once with the two handled kinds and the stack that ran the Handler', () => {
+      const stack = stackWithEffectHandler([
+        { type: 'show_message', text: 'Go.' },
+        aiAction,
+        newsAction,
+        remindAction,
+      ]);
+      const store = createStackStore(stack);
+      const handler = vi.fn<EffectsHandler>();
+      store.getState().attachEffects(handler);
+      store.getState().activateButton('todo-add');
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [effects, snapshot] = handler.mock.calls[0] ?? [];
+      expect(effects?.map((effect) => effect.kind)).toEqual([
+        'run_ai_field',
+        'schedule_notification',
+      ]);
+      expect(effects?.map((effect) => effect.actionIndex)).toEqual([1, 3]);
+      expect(snapshot).toBe(stack);
+    });
+
+    it('passes the stack from before the result, not the one the press produced', () => {
+      const stack = stackWithEffectHandler([
+        { type: 'set_value', targetObjectId: 'todo-input', value: 'changed' },
+        aiAction,
+      ]);
+      const store = createStackStore(stack);
+      const handler = vi.fn<EffectsHandler>();
+      store.getState().attachEffects(handler);
+      store.getState().activateButton('todo-add');
+
+      expect(fieldValue(store, 'todo-input')).toBe('changed');
+      expect(handler.mock.calls[0]?.[1]).toBe(stack);
+      expect(handler.mock.calls[0]?.[1]).not.toBe(store.getState().stack);
+    });
+
+    it('is not called when there are no handled effects', () => {
+      const handler = vi.fn<EffectsHandler>();
+      const plain = demoStore();
+      plain.getState().attachEffects(handler);
+      plain.getState().activateButton('todo-add');
+
+      const other = createStackStore(stackWithEffectHandler([newsAction, voiceAction]));
+      other.getState().attachEffects(handler);
+      other.getState().activateButton('todo-add');
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('is not called for typeInField or in other modes', () => {
+      const handler = vi.fn<EffectsHandler>();
+      const store = createStackStore(stackWithEffectHandler([aiAction]));
+      store.getState().attachEffects(handler);
+      store.getState().typeInField('todo-input', 'x');
+      store.getState().setMode('edit');
+      store.getState().activateButton('todo-add');
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('stops calling the handler after the returned function detaches it', () => {
+      const store = createStackStore(stackWithEffectHandler([aiAction]));
+      const handler = vi.fn<EffectsHandler>();
+      const detach = store.getState().attachEffects(handler);
+      store.getState().activateButton('todo-add');
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      detach();
+      store.getState().activateButton('todo-add');
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(store.getState().status?.text).toBe(
+        'Skipped action 1 (run_ai_field): AI fields arrives in a later release.',
+      );
+    });
+
+    it('stops calling the handler after attachEffects(null)', () => {
+      const store = createStackStore(stackWithEffectHandler([aiAction]));
+      const handler = vi.fn<EffectsHandler>();
+      store.getState().attachEffects(handler);
+      store.getState().attachEffects(null);
+      store.getState().activateButton('todo-add');
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('does not let a stale detach remove a newer handler', () => {
+      const store = createStackStore(stackWithEffectHandler([aiAction]));
+      const first = vi.fn<EffectsHandler>();
+      const second = vi.fn<EffectsHandler>();
+      const detachFirst = store.getState().attachEffects(first);
+      store.getState().attachEffects(second);
+      detachFirst();
+      store.getState().activateButton('todo-add');
+      expect(first).not.toHaveBeenCalled();
+      expect(second).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls the handler synchronously inside activateButton, after the state is set', () => {
+      const store = createStackStore(stackWithEffectHandler([aiAction]));
+      const order: string[] = [];
+      let statusSeenByHandler: unknown = 'unset';
+      store.getState().attachEffects(() => {
+        order.push('handler');
+        statusSeenByHandler = store.getState().status;
+      });
+      order.push('before');
+      store.getState().activateButton('todo-add');
+      order.push('after');
+
+      expect(order).toEqual(['before', 'handler', 'after']);
+      expect(statusSeenByHandler).toBeNull();
+    });
+
+    it('gives no message for handled kinds and the later-release message for the others', () => {
+      const store = createStackStore(
+        stackWithEffectHandler([
+          { type: 'show_message', text: 'Working.' },
+          aiAction,
+          newsAction,
+          remindAction,
+          voiceAction,
+        ]),
+      );
+      store.getState().attachEffects(vi.fn<EffectsHandler>());
+      store.getState().activateButton('todo-add');
+
+      expect(store.getState().status?.text).toBe(
+        'Working. ' +
+          'Skipped action 3 (fetch_news): News arrives in a later release. ' +
+          'Skipped action 5 (transcribe_audio): Voice transcription arrives in a later release.',
+      );
+    });
+
+    it('leaves the status unchanged when only handled kinds are returned', () => {
+      const store = createStackStore(stackWithEffectHandler([aiAction, remindAction]));
+      store.getState().attachEffects(vi.fn<EffectsHandler>());
+      store.getState().activateButton('todo-add');
+      expect(store.getState().status).toBeNull();
+      expect(store.getState().statusSeq).toBe(0);
+    });
+
+    it('restores all four messages once the handler is detached', () => {
+      const store = createStackStore(
+        stackWithEffectHandler([aiAction, newsAction, voiceAction, remindAction]),
+      );
+      const detach = store.getState().attachEffects(vi.fn<EffectsHandler>());
+      detach();
+      store.getState().activateButton('todo-add');
+      expect(store.getState().status?.text).toBe(
+        'Skipped action 1 (run_ai_field): AI fields arrives in a later release. ' +
+          'Skipped action 2 (fetch_news): News arrives in a later release. ' +
+          'Skipped action 3 (transcribe_audio): Voice transcription arrives in a later release. ' +
+          'Skipped action 4 (schedule_notification): Reminders arrives in a later release.',
+      );
+    });
+
+    it('keeps the press intact when the handler throws', () => {
+      const store = createStackStore(
+        stackWithEffectHandler([
+          { type: 'show_message', text: 'Done.' },
+          aiAction,
+          { type: 'go_to_card', cardId: 'about' },
+        ]),
+      );
+      const handler = vi.fn<EffectsHandler>(() => {
+        throw new Error('boom');
+      });
+      store.getState().attachEffects(handler);
+
+      expect(() => store.getState().activateButton('todo-add')).not.toThrow();
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(store.getState().currentCardId).toBe('about');
+      expect(store.getState().status?.text).toBe('Done.');
+
+      store.getState().setMode('interact');
+      expect(store.getState().mode).toBe('interact');
+    });
+
+    it('does not keep the handler in the state', () => {
+      const store = demoStore();
+      const handler = vi.fn<EffectsHandler>();
+      store.getState().attachEffects(handler);
+      expect(Object.values(store.getState())).not.toContain(handler);
+    });
+  });
+});
+
+describe('setStatus', () => {
+  it('shows the text with a new seq each time', () => {
+    const store = demoStore();
+    store.getState().setStatus('First.');
+    expect(store.getState().status).toEqual({ text: 'First.', seq: 1 });
+    store.getState().setStatus('Second.');
+    expect(store.getState().status).toEqual({ text: 'Second.', seq: 2 });
+    expect(store.getState().statusSeq).toBe(2);
+  });
+
+  it('continues after a handler message and lets the matching seq expire it', () => {
+    const store = demoStore();
+    store.getState().activateButton('todo-add');
+    const before = store.getState().statusSeq;
+    store.getState().setStatus('Later.');
+    expect(store.getState().status?.seq).toBe(before + 1);
+
+    store.getState().expireStatus(before);
+    expect(store.getState().status?.text).toBe('Later.');
+    store.getState().expireStatus(before + 1);
+    expect(store.getState().status).toBeNull();
+  });
+
+  it('does not change the stack, card or mode', () => {
+    const store = demoStore();
+    const before = store.getState();
+    store.getState().setStatus('Hello.');
+    const after = store.getState();
+    expect(after.stack).toBe(before.stack);
+    expect(after.currentCardId).toBe(before.currentCardId);
+    expect(after.mode).toBe(before.mode);
+  });
 });
 
 describe('expireStatus', () => {
@@ -918,5 +1155,237 @@ describe('applyStack', () => {
     store.getState().applyStack(input);
     expect(JSON.stringify(input)).toBe(snapshot);
     expect(store.getState().stack).toBe(input);
+  });
+});
+
+describe('history', () => {
+  function cardOf(store: ReturnType<typeof demoStore>, id: string) {
+    return store.getState().stack.cards.find((card) => card.id === id);
+  }
+
+  it('starts empty and records a user edit with source user', () => {
+    const store = demoStore();
+    expect(store.getState().past).toEqual([]);
+    expect(lastEntrySource(store.getState())).toBeNull();
+    const before = store.getState().stack;
+    store.getState().editObject('todo-add', { label: 'Plus' });
+    const { past, future } = store.getState();
+    expect(past).toHaveLength(1);
+    expect(past[0]).toEqual({ stack: before, source: 'user' });
+    expect(future).toEqual([]);
+    expect(lastEntrySource(store.getState())).toBe('user');
+  });
+
+  it('applyStack records with source ai by default and honors an explicit source', () => {
+    const store = demoStore();
+    store.getState().applyStack({ ...demoStack(), name: 'One' });
+    expect(lastEntrySource(store.getState())).toBe('ai');
+    store.getState().applyStack({ ...demoStack(), name: 'Two' }, 'user');
+    expect(lastEntrySource(store.getState())).toBe('user');
+    expect(store.getState().past).toHaveLength(2);
+  });
+
+  it('commitStack ignores the same stack and clears future on a real change', () => {
+    const store = demoStore();
+    store.getState().editObject('todo-add', { label: 'Plus' });
+    store.getState().undoEdit();
+    expect(store.getState().future).toHaveLength(1);
+    store.getState().commitStack(store.getState().stack, { source: 'user' });
+    expect(store.getState().past).toHaveLength(0);
+    expect(store.getState().future).toHaveLength(1);
+    store.getState().commitStack({ ...demoStack(), name: 'Other' }, { source: 'user' });
+    expect(store.getState().future).toEqual([]);
+  });
+
+  it('keeps at most 50 entries in past and in future', () => {
+    const store = demoStore();
+    for (let index = 0; index < 55; index += 1) {
+      store.getState().editObject('todo-add', { label: `L${String(index)}` });
+    }
+    expect(store.getState().past).toHaveLength(50);
+    for (let index = 0; index < 55; index += 1) store.getState().undoEdit();
+    expect(store.getState().past).toHaveLength(0);
+    expect(store.getState().future).toHaveLength(50);
+    for (let index = 0; index < 55; index += 1) store.getState().redoEdit();
+    expect(store.getState().future).toHaveLength(0);
+    expect(store.getState().past).toHaveLength(50);
+  });
+
+  it('replaceStack clears past and future', () => {
+    const store = demoStore();
+    store.getState().editObject('todo-add', { label: 'Plus' });
+    store.getState().editObject('todo-add', { label: 'Minus' });
+    store.getState().undoEdit();
+    store.getState().replaceStack(demoStack());
+    expect(store.getState().past).toEqual([]);
+    expect(store.getState().future).toEqual([]);
+    store.getState().undoEdit();
+    store.getState().redoEdit();
+    expect(store.getState().past).toEqual([]);
+  });
+
+  it('undo and redo restore the stacks and keep the card and the selection when valid', () => {
+    const store = demoStore();
+    const original = store.getState().stack;
+    store.getState().setMode('edit');
+    store.getState().selectObject('todo-add');
+    store.getState().editObject('todo-add', { label: 'Plus' });
+    const edited = store.getState().stack;
+    store.getState().undoEdit();
+    expect(store.getState().stack).toBe(original);
+    expect(store.getState().selectedObjectId).toBe('todo-add');
+    expect(store.getState().currentCardId).toBe(original.startCardId);
+    store.getState().redoEdit();
+    expect(store.getState().stack).toBe(edited);
+    expect(store.getState().selectedObjectId).toBe('todo-add');
+  });
+
+  it('undo drops the selection and card when they no longer exist', () => {
+    const store = demoStore();
+    store.getState().addCard();
+    const newCard = store.getState().currentCardId;
+    store.getState().setMode('edit');
+    store.getState().addObjectToCard('button');
+    expect(store.getState().selectedObjectId).not.toBeNull();
+    store.getState().undoEdit();
+    expect(store.getState().selectedObjectId).toBeNull();
+    store.getState().undoEdit();
+    expect(store.getState().currentCardId).toBe(store.getState().stack.startCardId);
+    expect(cardOf(store, newCard)).toBeUndefined();
+  });
+
+  it('undo and redo without entries change nothing', () => {
+    const store = demoStore();
+    const before = store.getState();
+    store.getState().undoEdit();
+    store.getState().redoEdit();
+    expect(store.getState().stack).toBe(before.stack);
+  });
+
+  it('a rejected edit leaves the stack and history alone and sets the status', () => {
+    const store = demoStore();
+    const before = store.getState().stack;
+    store.getState().editObject('todo-add', { width: 100000 });
+    expect(store.getState().stack).toBe(before);
+    expect(store.getState().past).toEqual([]);
+    expect(store.getState().status?.text).toEqual(expect.any(String));
+    expect(store.getState().status?.text).not.toBe('');
+    store.getState().editObject('missing-object', { x: 1 });
+    expect(store.getState().stack).toBe(before);
+    expect(store.getState().past).toEqual([]);
+  });
+
+  it('never mutates the stack it works on', () => {
+    const input = deepFreeze(demoStack());
+    const store = createStackStore(input);
+    const snapshot = JSON.stringify(input);
+    store.getState().editObject('todo-add', { x: 40 });
+    store.getState().addObjectToCard('field');
+    store.getState().addCard();
+    store.getState().undoEdit();
+    store.getState().redoEdit();
+    store.getState().undoEdit();
+    store.getState().undoEdit();
+    store.getState().undoEdit();
+    expect(JSON.stringify(input)).toBe(snapshot);
+  });
+
+  it('adds objects with the defaults, staggered by 8 per object, with unique ids', () => {
+    const store = demoStore();
+    const expected = {
+      button: { width: 96, height: 28 },
+      field: { width: 160, height: 28 },
+      list: { width: 160, height: 96 },
+      image: { width: 96, height: 96 },
+    } as const;
+    store.getState().addCard();
+    const cardId = store.getState().currentCardId;
+    const types = ['button', 'field', 'list', 'image'] as const;
+    types.forEach((type, index) => {
+      store.getState().addObjectToCard(type);
+      const objects = cardOf(store, cardId)?.objects ?? [];
+      const added = objects[index];
+      expect(added?.type).toBe(type);
+      expect(added?.width).toBe(expected[type].width);
+      expect(added?.height).toBe(expected[type].height);
+      expect(added?.x).toBe(16 + 8 * index);
+      expect(added?.y).toBe(16 + 8 * index);
+      expect(store.getState().selectedObjectId).toBe(added?.id);
+    });
+    const objects = cardOf(store, cardId)?.objects ?? [];
+    const button = objects[0];
+    const image = objects[3];
+    if (button?.type !== 'button' || image?.type !== 'image') throw new Error('wrong types');
+    expect(button.label).toBe('Button');
+    expect(image.alt).toBe('Image');
+    const ids = store.getState().stack.cards.flatMap((card) => card.objects.map((o) => o.id));
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('clamps a new object inside the card', () => {
+    const store = demoStore();
+    store.getState().addCard();
+    const cardId = store.getState().currentCardId;
+    for (let index = 0; index < 60; index += 1) store.getState().addObjectToCard('list');
+    const objects = cardOf(store, cardId)?.objects ?? [];
+    expect(objects.length).toBe(60);
+    const { cardWidth, cardHeight } = store.getState().stack;
+    for (const object of objects) {
+      expect(object.x + object.width).toBeLessThanOrEqual(cardWidth);
+      expect(object.y + object.height).toBeLessThanOrEqual(cardHeight);
+    }
+  });
+
+  it('removeSelected removes the selection, and does nothing without one', () => {
+    const store = demoStore();
+    store.getState().setMode('edit');
+    store.getState().removeSelected();
+    expect(store.getState().past).toEqual([]);
+    store.getState().selectObject('todo-list');
+    store.getState().removeSelected();
+    expect(cardOf(store, 'todo')?.objects.some((o) => o.id === 'todo-list')).toBe(false);
+    expect(store.getState().selectedObjectId).toBeNull();
+    expect(store.getState().past).toHaveLength(1);
+  });
+
+  it('addCard names the card "Card N" and opens it', () => {
+    const store = demoStore();
+    const count = store.getState().stack.cards.length;
+    store.getState().addCard();
+    const { stack, currentCardId } = store.getState();
+    expect(stack.cards).toHaveLength(count + 1);
+    expect(stack.cards[count]?.name).toBe(`Card ${String(count + 1)}`);
+    expect(currentCardId).toBe(stack.cards[count]?.id);
+    store.getState().addCard();
+    expect(store.getState().stack.cards[count + 1]?.name).toBe(`Card ${String(count + 2)}`);
+  });
+
+  it('deleteCurrentCard opens a neighbor, and the last card cannot be deleted', () => {
+    const store = demoStore();
+    store.getState().goToCard('about');
+    store.getState().deleteCurrentCard();
+    expect(cardOf(store, 'about')).toBeUndefined();
+    expect(store.getState().currentCardId).toBe('limits');
+    store.getState().deleteCurrentCard();
+    expect(store.getState().currentCardId).toBe('todo');
+    expect(store.getState().stack.cards).toHaveLength(1);
+    const before = store.getState().stack;
+    const pastLength = store.getState().past.length;
+    store.getState().deleteCurrentCard();
+    expect(store.getState().stack).toBe(before);
+    expect(store.getState().past).toHaveLength(pastLength);
+    expect(store.getState().status?.text).toContain('last card');
+  });
+
+  it('goToCard opens a known card, clears the selection and ignores unknown ids', () => {
+    const store = demoStore();
+    store.getState().setMode('edit');
+    store.getState().selectObject('todo-add');
+    store.getState().goToCard('about');
+    expect(store.getState().currentCardId).toBe('about');
+    expect(store.getState().selectedObjectId).toBeNull();
+    store.getState().goToCard('nope');
+    expect(store.getState().currentCardId).toBe('about');
+    expect(store.getState().past).toEqual([]);
   });
 });

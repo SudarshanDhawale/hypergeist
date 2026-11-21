@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseStack } from '@hypergeist/shared/format';
 import type { Stack } from '@hypergeist/shared/format';
+import { createSettingsRepository } from '../ai/index.ts';
 import demoText from '../stacks/thin-slice-todo.json?raw';
 import { bootPersistence, LAST_OPENED_KEY } from '../persistence/boot.ts';
 import type { BootOptions, BootResult } from '../persistence/boot.ts';
@@ -92,7 +93,16 @@ function renderRoot(options: Setup = {}) {
       }));
   let clock = SAVED_AT;
   const now = () => (clock += 1000);
-  const view = render(<AppRoot boot={boot} now={now} seedSet={seedSet} />);
+  const view = render(
+    <AppRoot
+      boot={boot}
+      now={now}
+      seedSet={seedSet}
+      fetch={() => Promise.reject(new Error('offline'))}
+      scenarios={[]}
+      settingsRepository={createSettingsRepository(null)}
+    />,
+  );
   return { repository, view };
 }
 

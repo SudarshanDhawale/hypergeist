@@ -14,6 +14,9 @@ const tsxFiles = import.meta.glob<string>('../**/*.tsx', {
 
 const TOKENS_FILE = './tokens.css';
 
+/** Stylesheets (by file name) that may reference --ghost. */
+const GHOST_ALLOWED_FILES: readonly string[] = ['ghost.css'];
+
 const REQUIRED_TOKENS = [
   '--ink',
   '--paper',
@@ -94,11 +97,39 @@ describe('CSS files', () => {
         expect(scanCss(text)).toEqual([]);
       });
 
-      it('does not reference --ghost', () => {
-        expect(text).not.toContain('--ghost');
-      });
+      if (!GHOST_ALLOWED_FILES.includes(path.replace(/^.*\//, ''))) {
+        it('does not reference --ghost', () => {
+          expect(text).not.toContain('--ghost');
+        });
+      }
     });
   }
+
+  it('only ghost.css is exempt from the --ghost rule', () => {
+    expect(GHOST_ALLOWED_FILES).toEqual(['ghost.css']);
+    const checked = Object.keys(cssFiles)
+      .filter((p) => p !== TOKENS_FILE)
+      .filter((p) => !GHOST_ALLOWED_FILES.includes(p.replace(/^.*\//, '')));
+    expect(checked).toContain('./base.css');
+    expect(checked).not.toContain('./ghost.css');
+  });
+
+  it('tokens.css defines the layout tokens as whole multiples of --px', () => {
+    const tokens = fileText(cssFiles, TOKENS_FILE);
+    const expected: Record<string, number> = {
+      '--handle-hit': 24,
+      '--edge-hit': 12,
+      '--card-bar-w': 112,
+      '--tools-w': 224,
+      '--chat-w': 320,
+      '--chat-h': 440,
+      '--dock-size': 48,
+    };
+    for (const [name, n] of Object.entries(expected)) {
+      expect(tokenValue(tokens, name), name).toBe(`calc(${n} * var(--px))`);
+    }
+    expect(tokenValue(tokens, '--readout-w')).toBe(tokenValue(tokens, '--tools-w'));
+  });
 
   it('tokens.css defines every required token', () => {
     const tokens = fileText(cssFiles, TOKENS_FILE);

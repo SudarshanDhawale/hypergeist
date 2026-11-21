@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { useStackStoreApi } from '../state/StackStoreContext.tsx';
 import { GhostWindow } from './GhostWindow.tsx';
 import { MenuBar } from './MenuBar.tsx';
+import { ReminderNotices } from './ReminderNotices.tsx';
 import { StackWindow } from './StackWindow.tsx';
 
 /**
@@ -35,6 +36,7 @@ export function Desktop(): JSX.Element {
       <aside className="rail">
         <GhostWindow />
       </aside>
+      <ReminderNotices />
     </div>
   );
 }

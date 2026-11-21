@@ -10,12 +10,16 @@ import type { Locator, Page, TestInfo } from '@playwright/test';
  * app. No AI call is involved and nothing leaves the app origin.
  *
  * Every Playwright test gets a fresh browser context, so each one starts with an empty
- * IndexedDB and the seeded demo stack.
+ * IndexedDB and the seeded demo stacks. The thin-slice to-do is the first one and the stack
+ * that opens.
  */
 
 const DEMO_NAME = 'Thin slice to-do';
 const DEMO_ID = 'thin-slice-todo';
-const FRESH_STACK_NAME = 'My stack';
+/** The bundled demo stacks seeded on first run: thin-slice-todo, smart-todo, study-deck. */
+const SEEDED_COUNT = 3;
+/** The stack that opens after the open demo stack is deleted: the next one in the list. */
+const NEXT_STACK_NAME = 'Smart To-Do with Reminders';
 /** `<slug>-<id>.hypergeist.json`, as built by `exportFilename`. */
 const DEMO_EXPORT_FILENAME = 'thin-slice-to-do-thin-slice-todo.hypergeist.json';
 const SEED_FILE = 'apps/web/src/stacks/thin-slice-todo.json';
@@ -103,7 +107,7 @@ async function exportDemoStack(page: Page, testInfo: TestInfo, savedAs: string):
   return readFileSync(target, 'utf8');
 }
 
-test('first run shows the seeded to-do stack and the Stacks window lists it as Demo and open', async ({
+test('first run opens the seeded to-do stack and the Stacks window lists every demo stack, with this one as Demo and open', async ({
   page,
 }) => {
   await page.goto('/');
@@ -112,7 +116,7 @@ test('first run shows the seeded to-do stack and the Stacks window lists it as D
 
   await openStacksWindow(page);
   const rows = stacksList(page).getByRole('listitem');
-  await expect(rows).toHaveCount(1);
+  await expect(rows).toHaveCount(SEEDED_COUNT);
   const row = rows.filter({ hasText: DEMO_NAME });
   await expect(row).toHaveCount(1);
   await expect(row.getByText('Demo', { exact: true })).toBeVisible();
@@ -125,7 +129,7 @@ test('first run shows the seeded to-do stack and the Stacks window lists it as D
   await expect(trashList(page).getByText('The trash is empty.', { exact: true })).toBeVisible();
 });
 
-test('delete the only stack, a fresh stack opens, and restoring from the trash brings the content back', async ({
+test('delete the open demo stack, the next stack opens, and restoring from the trash brings the content back', async ({
   page,
 }) => {
   await page.goto('/');
@@ -139,30 +143,30 @@ test('delete the only stack, a fresh stack opens, and restoring from the trash b
     dialog.getByText(`Moved "${DEMO_NAME}" to the trash.`, { exact: true }),
   ).toBeVisible();
 
-  // A fresh stack replaces the deleted open one, so the app always has a stack.
+  // The next stack in the list replaces the deleted open one, so the app always has a stack.
   const rows = stacksList(page).getByRole('listitem');
-  await expect(rows).toHaveCount(1);
-  await expect(rows.filter({ hasText: FRESH_STACK_NAME })).toHaveCount(1);
-  await expect(rows.getByText('Yours', { exact: true })).toBeVisible();
+  await expect(rows).toHaveCount(SEEDED_COUNT - 1);
+  await expect(rows.filter({ hasText: DEMO_NAME })).toHaveCount(0);
+  await expect(rows.filter({ hasText: NEXT_STACK_NAME })).toHaveCount(1);
   const trashRows = trashList(page).getByRole('listitem');
   await expect(trashRows).toHaveCount(1);
   await expect(trashRows.filter({ hasText: DEMO_NAME })).toHaveCount(1);
 
   await closeStacksWindow(page);
-  await expect(stackWindow(page, FRESH_STACK_NAME)).toBeVisible();
+  await expect(stackWindow(page, NEXT_STACK_NAME)).toBeVisible();
   await expect(stackWindow(page)).toHaveCount(0);
 
   // The deleted demo stack is not seeded again after a reload.
   await page.reload();
-  await waitForStack(page, FRESH_STACK_NAME);
+  await waitForStack(page, NEXT_STACK_NAME);
   await openStacksWindow(page);
-  await expect(stacksList(page).getByRole('listitem')).toHaveCount(1);
+  await expect(stacksList(page).getByRole('listitem')).toHaveCount(SEEDED_COUNT - 1);
   await expect(trashList(page).getByRole('listitem').filter({ hasText: DEMO_NAME })).toHaveCount(1);
 
   // Restore from the trash, then open it: the item added before the delete is back.
   await dialog.getByRole('button', { name: `Restore ${DEMO_NAME}`, exact: true }).click();
   await expect(dialog.getByText(`Restored "${DEMO_NAME}".`, { exact: true })).toBeVisible();
-  await expect(stacksList(page).getByRole('listitem')).toHaveCount(2);
+  await expect(stacksList(page).getByRole('listitem')).toHaveCount(SEEDED_COUNT);
   await expect(trashList(page).getByText('The trash is empty.', { exact: true })).toBeVisible();
 
   await dialog.getByRole('button', { name: `Open ${DEMO_NAME}`, exact: true }).click();
@@ -171,7 +175,7 @@ test('delete the only stack, a fresh stack opens, and restoring from the trash b
   await expect(todoItems(page)).toHaveText(['Buy milk']);
 });
 
-test('Restore demo stacks puts the original back and keeps the edited copy in the trash', async ({
+test('Restore demo stacks puts the originals back and keeps the replaced copies in the trash', async ({
   page,
 }) => {
   await page.goto('/');
@@ -188,13 +192,15 @@ test('Restore demo stacks puts the original back and keeps the edited copy in th
   await expect(confirm).toBeHidden();
 
   await expect(
-    dialog.getByText('Restored 1 demo stack. The versions you had are in the trash.', {
-      exact: true,
-    }),
+    dialog.getByText(
+      `Restored ${SEEDED_COUNT} demo stacks. The versions you had are in the trash.`,
+      { exact: true },
+    ),
   ).toBeVisible();
-  await expect(stacksList(page).getByRole('listitem')).toHaveCount(1);
+  await expect(stacksList(page).getByRole('listitem')).toHaveCount(SEEDED_COUNT);
+  // Every demo stack that was replaced goes to the trash, edited or not.
   const trashRows = trashList(page).getByRole('listitem');
-  await expect(trashRows).toHaveCount(1);
+  await expect(trashRows).toHaveCount(SEEDED_COUNT);
   await expect(trashRows.filter({ hasText: DEMO_NAME })).toHaveCount(1);
 
   // The open stack was reloaded from storage: the original content, without the edit.
@@ -223,9 +229,9 @@ test('cancelling Restore demo stacks changes nothing', async ({ page }) => {
   await closeStacksWindow(page);
   await expect(todoItems(page)).toHaveText(['Keep me']);
 
-  // Read the storage again: still one stack, an empty trash.
+  // Read the storage again: still every demo stack, an empty trash.
   await openStacksWindow(page);
-  await expect(stacksList(page).getByRole('listitem')).toHaveCount(1);
+  await expect(stacksList(page).getByRole('listitem')).toHaveCount(SEEDED_COUNT);
   await expect(trashList(page).getByText('The trash is empty.', { exact: true })).toBeVisible();
 });
 
@@ -275,9 +281,9 @@ test('export then import the same file gives back an identical stack', async ({
   await waitForStack(page);
   await expect(todoItems(page)).toHaveText(['Export me']);
 
-  // Both stacks are stored, and exporting again gives the same bytes.
+  // The imported stack and the other demo stacks are stored, and exporting again gives the same bytes.
   await openStacksWindow(page);
-  await expect(stacksList(page).getByRole('listitem')).toHaveCount(2);
+  await expect(stacksList(page).getByRole('listitem')).toHaveCount(SEEDED_COUNT);
   const secondText = await exportDemoStack(page, testInfo, 'second-export.hypergeist.json');
   expect(secondText).toBe(firstText);
 });
@@ -318,7 +324,7 @@ test('an invalid import shows the errors and stores nothing', async ({ page }, t
 
     await openStacksWindow(page);
     const rows = stacksList(page).getByRole('listitem');
-    await expect(rows).toHaveCount(1);
+    await expect(rows).toHaveCount(SEEDED_COUNT);
     await expect(rows.filter({ hasText: DEMO_NAME })).toHaveCount(1);
     await expect(trashList(page).getByText('The trash is empty.', { exact: true })).toBeVisible();
     await closeStacksWindow(page);
@@ -348,9 +354,9 @@ test('importing a stack whose id is in use offers a copy, and Cancel changes not
   await closeStacksWindow(page);
   await expect(stackWindow(page)).toBeVisible();
   await openStacksWindow(page);
-  await expect(stacksList(page).getByRole('listitem')).toHaveCount(1);
+  await expect(stacksList(page).getByRole('listitem')).toHaveCount(SEEDED_COUNT);
 
-  // Import as a copy: a second stack is stored and opened, and the window closes.
+  // Import as a copy: one more stack is stored and opened, and the window closes.
   await fileInput.setInputFiles(sameId);
   await expect(conflict).toBeVisible();
   await conflict.getByRole('button', { name: 'Import as a copy', exact: true }).click();
@@ -359,7 +365,7 @@ test('importing a stack whose id is in use offers a copy, and Cancel changes not
 
   await openStacksWindow(page);
   const rows = stacksList(page).getByRole('listitem');
-  await expect(rows).toHaveCount(2);
+  await expect(rows).toHaveCount(SEEDED_COUNT + 1);
   await expect(rows.filter({ hasText: DEMO_NAME })).toHaveCount(2);
   await expect(trashList(page).getByText('The trash is empty.', { exact: true })).toBeVisible();
 });

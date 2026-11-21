@@ -93,8 +93,26 @@ describe('Demo_Stack', () => {
     expect(text).toContain('lose the last second');
     expect(text).toContain('"saved" label');
     expect(text).toContain('the open card and the mode are not saved');
-    expect(text).toContain('ai arrives in a later release');
+    expect(text).not.toContain('later release');
+    expect(text).toContain('shared model or from recorded examples');
+    expect(text).toContain('own key is kept only in memory');
+    expect(text).toContain('the ai can be wrong');
+    expect(text).toContain('every ai change can be undone with undo');
     expect(text).toContain('empty field appends an empty item');
+  });
+
+  it('states the AI field and reminder limits and no longer says they arrive later', () => {
+    const limits = objectById(cardById('limits'), 'limits-text');
+    if (limits.type !== 'field') throw new Error('limits-text is not a field');
+    const text = limits.value.toLowerCase();
+    expect(text).toContain('ai fields use the shared demo model or an example answer');
+    expect(text).toContain('they can be wrong');
+    expect(text).toContain('one run counts against the demo limit');
+    expect(text).toContain('reminders fire only while hypergeist is open or installed');
+    expect(text).toContain('a missed reminder is shown when you return');
+    expect(text).not.toContain('arrive later');
+    expect(text).not.toContain('arrives later');
+    expect(text).not.toContain('not built yet');
   });
 
   it('uses only supported object and action types', () => {

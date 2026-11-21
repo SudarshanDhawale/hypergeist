@@ -13,10 +13,12 @@ import type {
   StackSummary,
   TrashSummary,
 } from '../persistence/types.ts';
+import { useAi } from '../state/AiContext.tsx';
 import { usePersistence } from '../state/PersistenceContext.tsx';
 import type { PersistenceValue } from '../state/PersistenceContext.tsx';
 import { ConfirmDialog } from './ConfirmDialog.tsx';
 import { CopyDialog } from './CopyDialog.tsx';
+import { MakeStackSection } from './MakeStackSection.tsx';
 import { Modal } from './Modal.tsx';
 
 export type StacksWindowProps = {
@@ -116,6 +118,7 @@ function StacksDialog({
 }): JSX.Element {
   const { repository, seeds, openStackId, now, onOpenStack, onStacksChanged, beforeAction } =
     persistence;
+  const ai = useAi();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const busyRef = useRef(false);
 
@@ -335,6 +338,38 @@ function StacksDialog({
     });
   }
 
+  // ---- Make a stack with the Ghost ----
+
+  /**
+   * Runs the new-stack Turn, stores the stack and opens it. The Turn does not hold the window's
+   * busy flag, so the rest of the window stays usable while it runs. Resolves with a message when
+   * nothing was opened, or `null` when the stack was opened.
+   */
+  async function makeWithGhost(text: string): Promise<string | null> {
+    if (ai === null) return null;
+    await settle(beforeAction);
+    const listed = await repository.list(now());
+    if (!listed.ok) return messageOf(listed.errors);
+    const outcome = await ai.controller.makeStack(text, {
+      takenIds: listed.value.stacks.map((summary) => summary.id),
+    });
+    const { stack } = outcome;
+    if (stack === null) return outcome.message;
+    const state: { opened: boolean; problem: string | null } = { opened: false, problem: null };
+    await run(async () => {
+      const stored = await repository.create(stack, now());
+      if (!stored.ok) {
+        state.problem = messageOf(stored.errors);
+        return;
+      }
+      onStacksChanged?.();
+      state.opened = true;
+      openAndClose(stack);
+    });
+    if (state.opened) return null;
+    return state.problem ?? 'Another action is running in this window. Nothing was stored.';
+  }
+
   // ---- Restore demo stacks ----
 
   function restoreDemo(): Promise<void> {
@@ -467,6 +502,8 @@ function StacksDialog({
               {plural(problems, 'was', 'were')} set aside.
             </p>
           ) : null}
+
+          <MakeStackSection onMake={makeWithGhost} />
 
           <ul className="stacks-list" aria-label="Stacks">
             {listing === null ? (

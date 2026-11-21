@@ -37,7 +37,7 @@ export type FallbackTurnResult = TurnResult & { readonly fallback?: FallbackInfo
  * `MODEL_NOT_FOUND`, `BAD_REQUEST` and `DEMO_ONLY` are not here on purpose: they are either the
  * user's doing or would not change with another provider.
  */
-const FALLBACK_CODES: ReadonlySet<ProviderErrorCode> = new Set<ProviderErrorCode>([
+export const FALLBACK_CODES: ReadonlySet<ProviderErrorCode> = new Set<ProviderErrorCode>([
   'RATE_LIMITED',
   'QUOTA',
   'NETWORK',
@@ -183,7 +183,7 @@ const NOTE_UNREACHABLE =
  * answer, otherwise `null` (no fallback, or a fallback between other providers). Built from the
  * error code only, so nothing from a response can enter it.
  */
-export function demoNote(result: FallbackTurnResult): string | null {
+export function demoNote(result: { readonly fallback?: FallbackInfo }): string | null {
   const fallback = result.fallback;
   if (fallback === undefined) return null;
   if (fallback.from !== 'proxy' || fallback.to !== 'recorded') return null;

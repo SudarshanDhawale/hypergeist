@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 /**
  * End-to-end tests for the thin slice (Requirements 22.9 to 22.13).
  * They run against the Worker that serves the built web app. No live model is involved,
- * because the slice contains no AI call.
+ * and these tests never send a message to the Ghost.
  */
 
 const STACK_NAME = 'Thin slice to-do';
@@ -27,7 +27,9 @@ async function waitForAppReady(page: Page): Promise<void> {
  * `toBeChecked` assertion is the real check and still fails the test if Alt+M never works.
  */
 async function pressAltMUntilModeIs(page: Page, label: 'Interact' | 'Edit'): Promise<void> {
-  const radio = page.getByRole('radiogroup', { name: 'Mode' }).getByRole('radio', { name: label });
+  const radio = page
+    .getByRole('radiogroup', { name: 'Mode' })
+    .getByRole('radio', { name: label, exact: true });
   await expect(async () => {
     if (!(await radio.isChecked())) {
       await page.keyboard.press('Alt+KeyM');
@@ -55,19 +57,23 @@ test('the retro desktop loads with the shell and contacts only the app origin', 
   const modeGroup = page.getByRole('radiogroup', { name: 'Mode' });
   await expect(modeGroup).toBeVisible();
   await expect(modeGroup.getByRole('radio', { name: 'Interact' })).toBeChecked();
-  await expect(modeGroup.getByRole('radio', { name: 'Edit' })).not.toBeChecked();
+  await expect(modeGroup.getByRole('radio', { name: 'Edit', exact: true })).not.toBeChecked();
 
   // Stack window and its status bar.
   await expect(stackWindow(page)).toBeVisible();
   await expect(stackWindow(page).getByText('Mode: Interact', { exact: true })).toBeVisible();
   await expect(stackWindow(page).getByText('Card 1 of 3', { exact: true })).toBeVisible();
 
-  // Ghost window states honestly that AI is not here yet.
-  const ghost = page.getByRole('complementary', {
-    name: 'Ghost is asleep. AI arrives in a later release.',
-  });
+  // Ghost window is the chat panel and states the real limits of the AI.
+  const ghost = page.getByRole('complementary', { name: 'Ghost chat', exact: true });
   await expect(ghost).toBeVisible();
-  await expect(ghost.getByText('AI arrives in a later release', { exact: true })).toBeVisible();
+  await expect(
+    ghost.getByText(
+      'Demo answers come from a shared model or recorded examples. The AI can make mistakes. Undo restores the stack as it was.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(ghost.getByRole('textbox', { name: 'Tell the Ghost what to do' })).toBeVisible();
 
   // Every request, fonts included, goes to the app origin.
   await page.evaluate(() => document.fonts.ready);
@@ -128,7 +134,7 @@ test('Alt+M toggles Edit mode, selection shows handles and properties, Escape cl
 
   // Alt+M switches to Edit mode.
   await pressAltMUntilModeIs(page, 'Edit');
-  await expect(page.getByRole('radio', { name: 'Edit' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Edit', exact: true })).toBeChecked();
   await expect(win.getByText('Mode: Edit', { exact: true })).toBeVisible();
   await expect(readout.getByText('Select an object to see its properties.')).toBeVisible();
   await expect(handles).toHaveCount(0);
