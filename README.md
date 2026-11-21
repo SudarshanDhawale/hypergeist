@@ -8,7 +8,8 @@ talking to it. It is an entry in the Kiroween 2026 hackathon, in the **Resurrect
 This repository holds the monorepo scaffold and the first thin slice of the product: a stack format
 with a validator, a pure action engine, a command-line validator, and a retro desktop that plays one
 small to-do stack. Stacks are saved in the browser, and a Stacks window opens, exports, imports, and
-deletes them. AI and sharing are not built yet (see [Limits](#limits-of-the-thin-slice)).
+deletes them. Sharing, news and voice transcription are not built yet (see
+[Limits](#limits-of-the-thin-slice)).
 
 ## What the app does today
 
@@ -33,8 +34,7 @@ Opening the app shows a retro desktop with a menu bar, one stack window, and a G
 - **Switching modes.** Use the Interact / Edit radio group in the menu bar, or press Alt+M. A hint
   line at the bottom of the stack window names the shortcut. It also shows messages from actions,
   such as "Item added.", for four seconds.
-- **The Ghost.** A sleeping placeholder in a side window. It does nothing yet and says "AI arrives
-  in a later release".
+- **The Ghost.** A chat panel in a side window. See "Using the Ghost" below.
 
 ## Requirements
 
@@ -259,10 +259,12 @@ calls give deeply equal results.
   `remixedFrom`.
 - `createStack(params)`: makes a valid one-card stack from an id, a name and optional sizes.
 
-What is not connected yet: the app does not call `applyOperation` or `buildRenderModel`, and it does
-not run effects. The app uses `createStack` only to make a new empty stack when the last one is
-deleted, and `remixStack` only to make a copy on an id conflict. When a button runs an action that returns an effect
-request, the status line says the feature arrives in a later release.
+What is not connected yet: the app does not call `applyOperation` or `buildRenderModel`. The app
+uses `createStack` only to make a new empty stack when the last one is deleted, and `remixStack`
+only to make a copy on an id conflict. The app carries out two effect requests, `run_ai_field` and
+`schedule_notification` (see [AI fields and reminders](#ai-fields-and-reminders)). When a button
+runs an action that returns a news or transcription request, the status line says the feature
+arrives in a later release.
 
 ## Saving and the Stacks window
 
@@ -305,12 +307,32 @@ reads every `.json` file in that folder at build time, so no code change is need
 a file is not a valid stack. A browser that already has a stored copy keeps it until you choose
 "Restore demo stacks".
 
+## Using the Ghost
+
+- **Chat.** Type in the box named "Tell the Ghost what to do" and press Enter (Shift+Enter adds a
+  line) or use Send. Two example buttons fill the box: "Make me a to-do list" and "Add a button".
+  Stop cancels a running answer.
+- **AI edit mode.** Choose "AI edit" in the menu bar, or press Alt+M to cycle the modes. Click an
+  object to select it. The Ghost shows a "Selected: ..." line, and your next message is about
+  that object.
+- **Make a stack from a sentence.** Open the Stacks window and use "Make a stack with the Ghost".
+  Write a sentence, or pick an example, and the new stack is added to your list.
+- **AI settings.** The "AI settings" button in the menu bar lets you use your own key and base
+  URL. The key is kept only in memory and is gone when you reload the page.
+- **Undo.** The Undo button in the Ghost panel restores the stack as it was before the last AI
+  change.
+- **Demo counter.** When the deployed Worker answers, a small counter shows how much of the shared
+  demo allowance is used. It stays hidden otherwise.
+- **Without the deployed Worker** (for example a plain local run), only the two recorded example
+  prompts answer ("Make me a to-do list" and "Add a button"). Other messages need the Worker or
+  your own key.
+
 ## AI orchestrator
 
-The logic that lets a model build and edit stacks is in `apps/web/src/ai/`. It has no UI. **Nothing
-in the app calls it yet.** The chat, the AI-edit mode and the settings dialog arrive with the
-`ai-assistant-ui` spec. Until then it runs only in tests. Its tests use scripted and recorded
-providers, so **no live model has been tried yet**. `docs/manual-verification-ai.md` is the checklist
+The logic that lets a model build and edit stacks is in `apps/web/src/ai/`. It has no UI of
+its own. The Ghost chat, the AI edit mode, the Stacks window section and the AI settings dialog
+call it (see "Using the Ghost"). Its tests use scripted and recorded providers, so **no live model
+has been tried yet**. `docs/manual-verification-ai.md` is the checklist
 for trying real providers.
 
 - **A Turn.** `runTurn` sends one user message and a compact view of the stack to a provider and
@@ -340,7 +362,8 @@ for trying real providers.
   at the end. There is no fuzzy matching. Any other prompt gets a reply that lists the examples and
   changes nothing. Add an example by putting a JSON file in `apps/web/src/ai/scenarios/`.
 - **Text for AI fields.** `completeText` asks a provider for the text of one `ai-field`. It never
-  changes a stack. Writing the text into the field is for a later spec.
+  changes a stack. The effects runtime writes the text into the field (see
+  [AI fields and reminders](#ai-fields-and-reminders)).
 
 ## AI proxy (Worker)
 
@@ -352,11 +375,51 @@ The Worker has an AI proxy for demo mode: `POST /api/ai/chat` forwards a chat re
 - **Kill switch.** `AI_ENABLED=false`, or a missing key or model, makes every chat call answer `AI_DISABLED`.
 - **Run it locally.** Copy `apps/worker/.dev.vars.example` to `apps/worker/.dev.vars`, fill in the values, set the model variables, then `pnpm --filter @hypergeist/worker dev`. See `docs/deployment.md`.
 
-It is not deployed until the Developer deploys it (`docs/deployment.md`). Nothing in the web app calls it yet: the AI panel arrives with `ai-assistant-ui`. No real provider has been tried yet.
+It is not deployed until the Developer deploys it (`docs/deployment.md`). The web app calls it from the Ghost. No real provider has been tried yet.
+
+## AI fields and reminders
+
+Two of the four effect requests now work. The other two, news and voice transcription, are not
+built yet.
+
+- **AI fields.** A button with the `run_ai_field` action fills an `ai-field` with text from a model.
+  The field shows "Thinking..." while it works, then the answer. The answer comes from the shared
+  demo model on the Worker, from your own model if you set one in the AI settings, or from a
+  recorded example when no model answers. The status bar says when an answer is a recorded example.
+  An AI field can be wrong. One run counts against the demo limit. If the stack changed while the
+  field was working, the answer is dropped.
+- **Reminders.** A button with the `schedule_notification` action sets a reminder from the text of a
+  field. Type the time as `YYYY-MM-DDTHH:mm` or `YYYY-MM-DD HH:mm` (your local time), or as ISO 8601
+  with `Z` or an offset. A past time, a time more than 366 days away, and a 51st pending reminder are
+  refused with a message. The first reminder asks for browser notification permission. If it is
+  blocked or the browser has no notifications, the reminder shows inside HyperGeist only.
+- **When a reminder fires.** Only while HyperGeist is open or installed as an app. A reminder that
+  came due while HyperGeist was closed is listed as "Missed while HyperGeist was closed" when you
+  return. The **Reminders** button in the menu bar shows the count and opens a window where you can
+  cancel a pending reminder or dismiss a fired or missed one. Reminders are stored in the browser
+  (IndexedDB, database `hypergeist-reminders`), never in a stack, an export or a link. In Memory
+  mode they are lost when the page closes.
+- **Two new bundled stacks.** **Smart To-Do with Reminders** has a Field for the task, an AI field
+  that guesses the date and time, a Field "When" you can correct, and a list of tasks. Press the
+  three buttons in order: **Read my task**, **Use this time**, **Remind me**. **Remind me** sets
+  the reminder only and never changes the list. **Add to my list** adds the task to the list at
+  any time, and each press adds it again. **Study Deck** has a
+  Field for notes, three buttons, and three AI fields on three linked cards: flashcards, a
+  five-question quiz and a short walkthrough outline. Their answers can be wrong. A browser that already stored the demo stacks
+  gets the two new ones with **Restore demo stacks** in the Stacks window.
+
+Manual checks are in `docs/manual-verification-effects.md`.
 
 ## Limits of the thin slice
 
-- **No AI.** Nothing in the app talks to a model. The Ghost is a placeholder.
+- **The AI can be wrong.** Demo answers come from a shared model or from recorded examples. An
+  own key is kept only in memory. Every AI change can be undone with Undo.
+- **AI fields.** They use the shared demo model or an example answer, they can be wrong, and one
+  run counts against the demo limit.
+- **Reminders.** They fire only while HyperGeist is open or installed. A missed reminder is shown
+  when you return. If notifications are blocked, a reminder shows inside HyperGeist only.
+- **News and voice transcription are not built yet.** A button that asks for them shows a message
+  that the feature arrives in a later release.
 - **Stacks live in this browser only.** They are stored in IndexedDB. Nothing is sent to a server.
   Clearing the browser's site data deletes them. Export a stack to keep a copy.
 - **Two tabs overwrite each other.** If two tabs have the same stack open, each save replaces the
@@ -380,7 +443,8 @@ It is not deployed until the Developer deploys it (`docs/deployment.md`). Nothin
   five object types and all nine actions, but the app does not use them all yet. The action
   executor runs only `go_to_card`, `set_value`, `append_item`, and `show_message`; it skips the
   other five actions with a message. An `image` object shows a placeholder and never loads its
-  `src`. An `ai-field` shows its stored value in a read-only box and does not call a model.
+  `src`. An `ai-field` shows its stored value in a read-only box. It is filled only by a button with
+  a `run_ai_field` action.
 - **Closed set.** There are no other object or action types, no conditionals, no loops, and no
   scripts.
 
