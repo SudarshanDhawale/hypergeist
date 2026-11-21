@@ -63,6 +63,11 @@ export type ListResult = {
 /** A bundled demo stack. The stack is already parsed with `parseStack`. */
 export type SeedStack = {
   readonly stack: Stack;
+  /**
+   * Place in the demo list, 0 for the first. The stored `savedAt` is `now - position`, so the
+   * list (newest first) shows the demo stacks in this order. Missing means 0.
+   */
+  readonly position?: number;
 };
 
 /** Returned by `save`, `create` and `restoreFromTrash`: the stored record's summary. */

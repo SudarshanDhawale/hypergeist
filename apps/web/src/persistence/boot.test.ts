@@ -314,6 +314,31 @@ describe('bootPersistence', () => {
     expect(idsOf(result)).toContain('thin-slice-todo');
   });
 
+  it('a fresh boot with the bundled stacks lists thin-slice, smart-todo, study-deck and opens the first', async () => {
+    const result = await bootPersistence({ now: 1_000, openRepository: memoryOpener() });
+
+    expect(result.seedProblems).toEqual([]);
+    expect(idsOf(result)).toEqual(['thin-slice-todo', 'smart-todo', 'study-deck']);
+    expect(result.initial.id).toBe('thin-slice-todo');
+    // Strictly ordered saved times, newest first.
+    const times = result.summaries.map((summary) => summary.savedAt);
+    expect(times).toEqual([...times].sort((a, b) => b - a));
+    expect(new Set(times).size).toBe(times.length);
+  });
+
+  it('a fresh boot on IndexedDB opens thin-slice-todo and keeps the same list order', async () => {
+    const factory = new IDBFactory();
+    const name = uniqueName();
+    const open = () => openRepository({ indexedDB: factory, name });
+
+    const result = await bootPersistence({ now: 1_000, openRepository: open });
+
+    expect(result.mode).toBe('indexeddb');
+    expect(idsOf(result)).toEqual(['thin-slice-todo', 'smart-todo', 'study-deck']);
+    expect(result.initial.id).toBe('thin-slice-todo');
+    await result.repository.close();
+  });
+
   describe('storage that fails after it opened', () => {
     const failed: Result<never> = {
       ok: false,

@@ -290,6 +290,21 @@ export function runRepositoryContract(name: string, setup: MakeHarness): void {
         ]);
       });
 
+      it('stores savedAt as now minus the seed position, so the list follows the positions', async () => {
+        const seeds: SeedStack[] = [
+          { stack: makeStack('seed-z', 'Z'), position: 0 },
+          { stack: makeStack('seed-m', 'M'), position: 1 },
+          { stack: makeStack('seed-a', 'A'), position: 2 },
+        ];
+        valueOf(await repo.seedIfNeeded(seeds, 100));
+
+        expect(valueOf(await repo.list(110)).stacks).toEqual([
+          { id: 'seed-z', name: 'Z', savedAt: 100, origin: 'seed' },
+          { id: 'seed-m', name: 'M', savedAt: 99, origin: 'seed' },
+          { id: 'seed-a', name: 'A', savedAt: 98, origin: 'seed' },
+        ]);
+      });
+
       it('does not bring a deleted seed stack back', async () => {
         const seeds = seedsOf('seed-a', 'seed-b');
         valueOf(await repo.seedIfNeeded(seeds, 100));
@@ -516,6 +531,20 @@ export function runRepositoryContract(name: string, setup: MakeHarness): void {
     });
 
     describe('restore demo stacks', () => {
+      it('stores savedAt as now minus the seed position when restoring', async () => {
+        const seeds: SeedStack[] = [
+          { stack: makeStack('seed-z', 'Z'), position: 0 },
+          { stack: makeStack('seed-a', 'A'), position: 1 },
+        ];
+        valueOf(await repo.seedIfNeeded(seeds, 100));
+        valueOf(await repo.restoreDemo(seeds, 300));
+
+        expect(valueOf(await repo.list(310)).stacks).toEqual([
+          { id: 'seed-z', name: 'Z', savedAt: 300, origin: 'seed' },
+          { id: 'seed-a', name: 'A', savedAt: 299, origin: 'seed' },
+        ]);
+      });
+
       it('replaces seed stacks, moves edited copies to the trash, leaves other ids alone and adds missing seeds', async () => {
         const seeds = seedsOf('seed-a', 'seed-b', 'seed-c');
         valueOf(await repo.seedIfNeeded(seeds, 100));

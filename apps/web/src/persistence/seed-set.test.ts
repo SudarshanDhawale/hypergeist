@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateStack } from '@hypergeist/shared/format';
-import { loadSeedSet } from './seed-set.ts';
+import { SEED_ORDER, loadSeedSet } from './seed-set.ts';
 import demoText from '../stacks/thin-slice-todo.json?raw';
 
 /** A small valid stack with the given id. */
@@ -39,6 +39,12 @@ describe('loadSeedSet with the bundled files', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('lists thin-slice-todo, smart-todo, study-deck in that order, with positions 0, 1, 2', () => {
+    expect(SEED_ORDER).toEqual(['thin-slice-todo', 'smart-todo', 'study-deck']);
+    expect(seedSet.stacks.map((s) => s.stack.id)).toEqual([...SEED_ORDER]);
+    expect(seedSet.stacks.map((s) => s.position)).toEqual([0, 1, 2]);
+  });
+
   it('uses only .json files directly under apps/web/src/stacks/', () => {
     const direct = Object.keys(import.meta.glob('../stacks/*.json'));
     const nested = Object.keys(import.meta.glob('../stacks/**/*.json'));
@@ -74,7 +80,7 @@ describe('loadSeedSet with injected files', () => {
       'a.json': stackText('same'),
       'c.json': stackText('other'),
     });
-    expect(result.stacks.map((s) => s.stack.id)).toEqual(['same', 'other']);
+    expect(result.stacks.map((s) => s.stack.id)).toEqual(['other', 'same']);
     expect(result.problems).toHaveLength(1);
     const problem = result.problems[0];
     expect(problem?.file).toBe('b.json');
@@ -86,7 +92,7 @@ describe('loadSeedSet with injected files', () => {
     });
   });
 
-  it('orders stacks and problems by file name, not by insertion order', () => {
+  it('orders stacks by id and problems by file name, not by insertion order', () => {
     const result = loadSeedSet({
       'c.json': stackText('gamma'),
       'z.json': 'nope',
@@ -96,6 +102,24 @@ describe('loadSeedSet with injected files', () => {
     });
     expect(result.stacks.map((s) => s.stack.id)).toEqual(['alpha', 'beta', 'gamma']);
     expect(result.problems.map((p) => p.file)).toEqual(['m.json', 'z.json']);
+  });
+
+  it('puts SEED_ORDER ids first in that order and the others after, by id', () => {
+    const result = loadSeedSet({
+      'a.json': stackText('zeta'),
+      'b.json': stackText('study-deck'),
+      'c.json': stackText('alpha'),
+      'd.json': stackText('thin-slice-todo'),
+      'e.json': stackText('smart-todo'),
+    });
+    expect(result.stacks.map((s) => s.stack.id)).toEqual([
+      'thin-slice-todo',
+      'smart-todo',
+      'study-deck',
+      'alpha',
+      'zeta',
+    ]);
+    expect(result.stacks.map((s) => s.position)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it('gives an empty result for no files', () => {

@@ -336,7 +336,11 @@ export function createMemoryRepository(options: MemoryRepositoryOptions = {}): M
 
   function writeSeeds(working: State, seeds: readonly SeedStack[], now: number): void {
     for (const seed of seeds) {
-      putStack(working, seed.stack.id, { stack: seed.stack, savedAt: now, origin: 'seed' });
+      putStack(working, seed.stack.id, {
+        stack: seed.stack,
+        savedAt: now - (seed.position ?? 0),
+        origin: 'seed',
+      });
     }
   }
 
@@ -527,7 +531,11 @@ export function createMemoryRepository(options: MemoryRepositoryOptions = {}): M
           } else {
             addedIds.push(id);
           }
-          putStack(working, id, { stack: seed.stack, savedAt: now, origin: 'seed' });
+          putStack(working, id, {
+            stack: seed.stack,
+            savedAt: now - (seed.position ?? 0),
+            origin: 'seed',
+          });
         }
         const dropped = enforceTrashCap(working);
         working.meta.set(SEEDED_KEY, true);

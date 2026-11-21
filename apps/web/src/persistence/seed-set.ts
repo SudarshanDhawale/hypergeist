@@ -10,7 +10,10 @@ export type SeedProblem = {
 };
 
 export type SeedSet = {
-  /** Valid, unique stacks, in file name order. */
+  /**
+   * Valid, unique stacks in demo order: the ids in `SEED_ORDER` first, in that order, then the
+   * others by id. Each stack's `position` is its place in this list.
+   */
   readonly stacks: readonly SeedStack[];
   /** Files that were skipped, in file name order. */
   readonly problems: readonly SeedProblem[];
@@ -27,11 +30,28 @@ const bundledFiles: Record<string, string> = import.meta.glob<string>('../stacks
   eager: true,
 });
 
-/** Compares by UTF-16 code units, so the order does not depend on the locale. */
-function byFileName(a: string, b: string): number {
+/**
+ * The order of the bundled demo stacks in the Stacks window, and so the stack a fresh browser
+ * opens first. Seeding turns the place in this list into strictly ordered `savedAt` values.
+ * A stack that is not listed here comes after the listed ones, ordered by id.
+ */
+export const SEED_ORDER: readonly string[] = ['thin-slice-todo', 'smart-todo', 'study-deck'];
+
+/** Compares by UTF-16 code units, so the order does not depend on the locale. Used for file names and ids. */
+function byCodeUnits(a: string, b: string): number {
   if (a < b) return -1;
   if (a > b) return 1;
   return 0;
+}
+
+/** Place of a stack id in `SEED_ORDER`, or after the last listed place when it is not there. */
+function orderOf(id: string): number {
+  const index = SEED_ORDER.indexOf(id);
+  return index === -1 ? SEED_ORDER.length : index;
+}
+
+function bySeedOrder(a: SeedStack, b: SeedStack): number {
+  return orderOf(a.stack.id) - orderOf(b.stack.id) || byCodeUnits(a.stack.id, b.stack.id);
 }
 
 /**
@@ -44,7 +64,7 @@ export function loadSeedSet(files: Readonly<Record<string, string>> = bundledFil
   const problems: SeedProblem[] = [];
   const seenIds = new Set<string>();
 
-  for (const file of Object.keys(files).sort(byFileName)) {
+  for (const file of Object.keys(files).sort(byCodeUnits)) {
     const text = files[file];
     const parsed = parseStack(text);
     if (!parsed.ok) {
@@ -72,5 +92,9 @@ export function loadSeedSet(files: Readonly<Record<string, string>> = bundledFil
     stacks.push({ stack: parsed.value });
   }
 
-  return { stacks, problems };
+  const ordered = [...stacks].sort(bySeedOrder);
+  return {
+    stacks: ordered.map((seed, position) => ({ ...seed, position })),
+    problems,
+  };
 }

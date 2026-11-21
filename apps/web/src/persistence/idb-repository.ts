@@ -692,7 +692,11 @@ export async function openIdbRepository(
             return rejected;
           }
           for (const seed of seeds) {
-            const record: StackRecord = { stack: seed.stack, savedAt: now, origin: 'seed' };
+            const record: StackRecord = {
+              stack: seed.stack,
+              savedAt: now - (seed.position ?? 0),
+              origin: 'seed',
+            };
             await stacksStore.put(counted(session, record));
           }
           await metaStore.put(counted(session, true), SEEDED_KEY);
@@ -726,7 +730,11 @@ export async function openIdbRepository(
           } else {
             addedIds.push(id);
           }
-          const record: StackRecord = { stack: seed.stack, savedAt: now, origin: 'seed' };
+          const record: StackRecord = {
+            stack: seed.stack,
+            savedAt: now - (seed.position ?? 0),
+            origin: 'seed',
+          };
           await stacksStore.put(counted(session, record));
         }
         const dropped = await enforceTrashCap(trashStore);
